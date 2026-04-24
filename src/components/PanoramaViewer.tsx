@@ -10,6 +10,10 @@ export interface PanoramaViewerProps {
   minFov?: number;
   maxFov?: number;
   className?: string;
+  editMode?: boolean;
+  onAnnotationCreate?: (position: { x: number; y: number; z: number }) => void;
+  cameraRef?: React.MutableRefObject<THREE.PerspectiveCamera | null>;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const SPHERE_RADIUS = 500;
@@ -20,50 +24,55 @@ export function PanoramaViewer({
   minFov = 30,
   maxFov = 100,
   className,
+  editMode = false,
+  onAnnotationCreate,
+  cameraRef: externalCameraRef,
+  containerRef: externalContainerRef,
 }: PanoramaViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalContainerRef = useRef<HTMLDivElement>(null);
+  const containerRefFinal = externalContainerRef ?? internalContainerRef;
 
   const sceneRef    = useRef<THREE.Scene | null>(null);
   const cameraRef   = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sphereRef   = useRef<THREE.Mesh | null>(null);
 
-  // ── Spherical coords for camera direction ─────────────────────────────
-  const longitudeRef = useRef(0);   // horizontal (radians)
-  const latitudeRef  = useRef(0);   // vertical (radians)
+  // Expose cameraRef to parent
+  useEffect(() => {
+    if (externalCameraRef) externalCameraRef.current = cameraRef.current;
+  });
+
+  // Spherical coords
+  const longitudeRef = useRef(0);
+  const latitudeRef  = useRef(0);
   const fovRef       = useRef(initialFov);
   const targetFovRef = useRef(initialFov);
 
-  // ── Drag state ─────────────────────────────────────────────────────────
+  // Drag state
   const isDraggingRef   = useRef(false);
   const lastPointerRef  = useRef<{ x: number; y: number } | null>(null);
   const velocityLonRef  = useRef(0);
   const velocityLatRef  = useRef(0);
 
-  // ── All Three.js setup in ONE effect ─────────────────────────────────
-
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerRefFinal.current;
     if (!container) return;
 
     const w = container.clientWidth  || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
 
-    // ── Scene ──────────────────────────────────────────────────────────
+    // Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // ── Camera ─────────────────────────────────────────────────────────
-    // Camera is at sphere CENTER (0,0,0). We want it to look OUTWARD.
-    // Using lookAt with a tangent vector so position≠target.
+    // Camera
     const camera = new THREE.PerspectiveCamera(initialFov, w / h, 0.1, 2000);
     camera.position.set(0, 0, 0);
-    // Initial direction: tangent along +Z so we're looking at sphere interior
-    const initialTarget = new THREE.Vector3(0, 0, 1);
-    camera.lookAt(initialTarget);
+    camera.lookAt(0, 0, 1);
     cameraRef.current = camera;
+    if (externalCameraRef) externalCameraRef.current = camera;
 
-    // ── Renderer ────────────────────────────────────────────────────────
+    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
@@ -71,23 +80,21 @@ export function PanoramaViewer({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // ── Sphere ─────────────────────────────────────────────────────────
-    // SphereGeometry default front-faces outward. Camera is at center (0,0,0).
-    // BackSide renders the inner surface so we see the texture from inside.
+    // Sphere
     const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 32);
-    // TEMP: red so we can verify sphere renders before texture is loaded
     const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.name = 'panorama-sphere';
     scene.add(sphere);
     sphereRef.current = sphere;
 
-    // ── Update camera from spherical coords ───────────────────────────
+    // Raycaster for annotation placement
+    const raycaster = new THREE.Raycaster();
+
+    // Update camera
     const updateCamera = () => {
-      // Spherical coords: longitude (theta) = horizontal angle, latitude (phi) = vertical
-      const theta = longitudeRef.current;  // left/right
-      const phi   = latitudeRef.current;   // up/down
-      // Direction from sphere center toward the shell surface
+      const theta = longitudeRef.current;
+      const phi   = latitudeRef.current;
       const dirX = Math.cos(phi) * Math.sin(theta);
       const dirY = Math.sin(phi);
       const dirZ = Math.cos(phi) * Math.cos(theta);
@@ -96,12 +103,11 @@ export function PanoramaViewer({
       camera.updateProjectionMatrix();
     };
 
-    // ── Animation loop ─────────────────────────────────────────────────
+    // Animation loop
     let rafId = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
 
-      // Inertia (smooth deceleration when not dragging)
       if (!isDraggingRef.current) {
         longitudeRef.current += velocityLonRef.current;
         latitudeRef.current  += velocityLatRef.current;
@@ -111,20 +117,17 @@ export function PanoramaViewer({
         if (Math.abs(velocityLatRef.current) < 0.00001) velocityLatRef.current = 0;
       }
 
-      // Smooth FOV interpolation
       const diff = targetFovRef.current - fovRef.current;
-      if (Math.abs(diff) > 0.01) {
-        fovRef.current = lerp(fovRef.current, targetFovRef.current, 0.1);
-      } else {
-        fovRef.current = targetFovRef.current;
-      }
+      fovRef.current = Math.abs(diff) > 0.01
+        ? lerp(fovRef.current, targetFovRef.current, 0.1)
+        : targetFovRef.current;
 
       updateCamera();
       renderer.render(scene, camera);
     };
     animate();
 
-    // ── Resize handling ────────────────────────────────────────────────
+    // Resize
     const handleResize = () => {
       const nw = container.clientWidth;
       const nh = container.clientHeight;
@@ -135,7 +138,7 @@ export function PanoramaViewer({
     const ro = new ResizeObserver(handleResize);
     ro.observe(container);
 
-    // ── Pointer events ─────────────────────────────────────────────────
+    // Pointer events
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       isDraggingRef.current = true;
@@ -151,8 +154,7 @@ export function PanoramaViewer({
       const dy = e.clientY - lastPointerRef.current.y;
       const speed = 0.003;
       let newLon = longitudeRef.current - dx * speed;
-      let newLat = latitudeRef.current  - dy * speed;
-      newLat = clamp(newLat, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+      let newLat = clamp(latitudeRef.current - dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
       latitudeRef.current  = newLat;
       velocityLonRef.current = -dx * speed;
@@ -165,13 +167,33 @@ export function PanoramaViewer({
       lastPointerRef.current = null;
     };
 
+    const onClick = (e: MouseEvent) => {
+      if (!editMode || !onAnnotationCreate) return;
+      // Distinguish click from drag: only fire if pointer barely moved
+      const dx = e.clientX - (lastPointerRef.current?.x ?? e.clientX);
+      const dy = e.clientY - (lastPointerRef.current?.y ?? e.clientY);
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) return;
+
+      const rect = container.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObject(sphere);
+      if (hits.length > 0) {
+        const p = hits[0].point;
+        onAnnotationCreate({ x: p.x, y: p.y, z: p.z });
+      }
+    };
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY || e.detail || 0;
       targetFovRef.current = clamp(targetFovRef.current + delta * 0.05, minFov, maxFov);
     };
 
-    // Touch support
+    // Touch
     let lastTouch: { x: number; y: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
@@ -187,8 +209,7 @@ export function PanoramaViewer({
       const dy = e.touches[0].clientY - lastTouch.y;
       const speed = 0.003;
       let newLon = longitudeRef.current - dx * speed;
-      let newLat = latitudeRef.current  - dy * speed;
-      newLat = clamp(newLat, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+      let newLat = clamp(latitudeRef.current - dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
       latitudeRef.current  = newLat;
       velocityLonRef.current = -dx * speed;
@@ -204,12 +225,13 @@ export function PanoramaViewer({
     container.addEventListener('pointermove',  onPointerMove);
     container.addEventListener('pointerup',    onPointerUp);
     container.addEventListener('pointercancel', onPointerUp);
+    container.addEventListener('click',        onClick);
     container.addEventListener('wheel',         onWheel,  { passive: false });
     container.addEventListener('touchstart',    onTouchStart, { passive: true });
     container.addEventListener('touchmove',     onTouchMove,  { passive: false });
     container.addEventListener('touchend',     onTouchEnd);
 
-    // ── Load texture ─────────────────────────────────────────────────
+    // Load texture
     function loadTexture(url: string) {
       new THREE.TextureLoader().load(
         url,
@@ -218,9 +240,8 @@ export function PanoramaViewer({
           const mat = sphere.material as THREE.MeshBasicMaterial;
           if (mat.map) mat.map.dispose();
           mat.map = texture;
-          mat.color.set(0xffffff); // back to white so texture shows true colors
+          mat.color.set(0xffffff);
           mat.needsUpdate = true;
-          console.log('[PanoramaViewer] Texture loaded:', url);
         },
         undefined,
         () => console.error('[PanoramaViewer] Texture load error:', url)
@@ -228,7 +249,7 @@ export function PanoramaViewer({
     }
     if (imageUrl) loadTexture(imageUrl);
 
-    // ── Cleanup ────────────────────────────────────────────────────────
+    // Cleanup
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
@@ -236,6 +257,7 @@ export function PanoramaViewer({
       container.removeEventListener('pointermove',  onPointerMove);
       container.removeEventListener('pointerup',    onPointerUp);
       container.removeEventListener('pointercancel', onPointerUp);
+      container.removeEventListener('click',        onClick);
       container.removeEventListener('wheel',         onWheel);
       container.removeEventListener('touchstart',    onTouchStart);
       container.removeEventListener('touchmove',     onTouchMove);
@@ -247,9 +269,7 @@ export function PanoramaViewer({
       }
       geometry.dispose();
       renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       scene.remove(sphere);
       scene.clear();
       sceneRef.current    = null;
@@ -260,8 +280,7 @@ export function PanoramaViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Load / swap texture when URL changes ────────────────────────────────
-
+  // Texture swap effect
   useEffect(() => {
     if (!imageUrl || !sphereRef.current) return;
     const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
@@ -273,7 +292,6 @@ export function PanoramaViewer({
         mat.map = texture;
         mat.color.set(0xffffff);
         mat.needsUpdate = true;
-        console.log('[PanoramaViewer] Texture loaded:', imageUrl);
       },
       undefined,
       () => console.error('[PanoramaViewer] Failed to load:', imageUrl)
@@ -282,9 +300,14 @@ export function PanoramaViewer({
 
   return (
     <div
-      ref={containerRef}
+      ref={internalContainerRef}
       className={className}
-      style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: 'grab' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        cursor: editMode ? 'crosshair' : 'grab',
+      }}
     />
   );
 }
