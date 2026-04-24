@@ -143,6 +143,7 @@ body,
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
   flex-shrink: 0;
+  pointer-events: none;
 }
 
 .annotation-label {
@@ -158,6 +159,49 @@ body,
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* ── Annotation Actions (Edit/Delete buttons) ─────────────────────── */
+.annotation-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.annotation-marker:hover .annotation-actions,
+.annotation-marker:focus-within .annotation-actions {
+  opacity: 1;
+}
+
+.annotation-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(20, 20, 28, 0.8);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  padding: 0;
+}
+
+.annotation-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.annotation-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
 }
 
 /* ── Annotation Modal ─────────────────────────────────────────────── */
@@ -182,6 +226,14 @@ body,
   min-width: 220px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   animation: modalFadeIn 0.2s ease;
+}
+
+.annotation-modal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 @keyframes modalFadeIn {

@@ -12,7 +12,8 @@ interface AnnotationLayerProps {
   cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   editMode: boolean;
-  onTick?: (timestamp: number) => void;
+  onAnnotationEdit?: (annotation: AnnotationData) => void;
+  onAnnotationDelete?: (id: string) => void;
   rafIdRef?: React.MutableRefObject<number>;
 }
 
@@ -21,7 +22,8 @@ export function AnnotationLayer({
   cameraRef,
   containerRef,
   editMode,
-  onTick,
+  onAnnotationEdit,
+  onAnnotationDelete,
   rafIdRef,
 }: AnnotationLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
@@ -32,13 +34,6 @@ export function AnnotationLayer({
   useEffect(() => {
     if (editMode) return;
 
-    // Register our tick function into PanoramaViewer's RAF loop
-    if (onTick) {
-      onTick(0);
-    }
-
-    // Sync rafIdRef from PanoramaViewer's animate loop
-    // so we don't run a second independent loop
     const syncRafLoop = () => {
       if (!rafIdRef) return;
 
@@ -83,16 +78,52 @@ export function AnnotationLayer({
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [editMode, onTick, rafIdRef, cameraRef, containerRef]);
+  }, [editMode, rafIdRef, cameraRef, containerRef]);
 
-  if (editMode) return null;
-
+  // Always render annotations (both view and edit mode)
   return (
     <div ref={layerRef} className="annotation-layer">
       {annotations.map((ann) => (
-        <div key={ann.id} data-id={ann.id} className="annotation-marker">
+        <div
+          key={ann.id}
+          data-id={ann.id}
+          className="annotation-marker"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="annotation-dot" />
           <div className="annotation-label">{ann.text}</div>
+          {editMode && (
+            <div className="annotation-actions">
+              <button
+                className="annotation-action-btn edit"
+                title="Edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAnnotationEdit?.(ann);
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button
+                className="annotation-action-btn delete"
+                title="Delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAnnotationDelete?.(ann.id);
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
