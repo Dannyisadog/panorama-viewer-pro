@@ -32,8 +32,7 @@ export function AnnotationLayer({
   annotationsRef.current = annotations;
 
   useEffect(() => {
-    if (editMode) return;
-
+    // RAF loop runs in BOTH edit and view mode — no early return
     const syncRafLoop = () => {
       if (!rafIdRef) return;
 
@@ -54,6 +53,12 @@ export function AnnotationLayer({
 
         const pos = new THREE.Vector3(ann.position.x, ann.position.y, ann.position.z);
         pos.project(camera);
+
+        // Guard against NaN / invalid projection
+        if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
+          el.style.opacity = '0';
+          return;
+        }
 
         // Hide when behind camera
         if (pos.z > 1 || pos.z < -1) {
@@ -78,7 +83,7 @@ export function AnnotationLayer({
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [editMode, rafIdRef, cameraRef, containerRef]);
+  }, [rafIdRef, cameraRef, containerRef]);
 
   // Always render annotations (both view and edit mode)
   // Layer gets "edit-mode" class when editing so CSS can show controls always
