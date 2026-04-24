@@ -11,3 +11,69 @@ body,
   height: 100%;
   overflow: hidden;
 }
+
+/* ── Floating Bottom Control Bar ────────────────────────────────────── */
+.floating-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  /* Glassmorphism */
+  background: rgba(15, 15, 20, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* Allow pointer events to pass through bar bg to canvas */
+  pointer-events: none;
+}
+
+/* ── Upload Button ─────────────────────────────────────────────────── */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 9px 18px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  overflow: hidden;
+
+  /* Ensure button captures pointer events */
+  pointer-events: auto;
+}
+
+.upload-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.upload-btn:active {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(0.97);
+}
+
+.upload-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
