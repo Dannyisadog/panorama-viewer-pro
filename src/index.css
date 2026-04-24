@@ -22,94 +22,109 @@ body,
 
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  /* Space: left ≈ right (balanced visual weight) */
+  padding: 0 20px;
+  height: 64px;
 
   /* Glassmorphism */
-  background: rgba(15, 15, 20, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 10px 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  background: rgba(18, 18, 26, 0.72);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 18px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.40),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
 
   /* Allow pointer events to pass through bar bg to canvas */
   pointer-events: none;
 }
 
-/* ── Upload Button ─────────────────────────────────────────────────── */
-.upload-btn {
+/* ── Button Group (centered, gap-applied here) ──────────────────────── */
+.floating-bar__group {
   display: flex;
   align-items: center;
-  gap: 8px;
-
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 10px;
-  padding: 9px 18px;
-  color: #fff;
-  font-size: 14px;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.1s;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  max-width: 280px;
-  overflow: hidden;
-
-  /* Ensure button captures pointer events */
+  gap: 10px;
   pointer-events: auto;
 }
 
-.upload-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
+/* Right spacer — keeps visual balance, ready for future tools */
+.floating-bar__spacer {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-left: 10px;
 }
 
-.upload-btn:active {
-  background: rgba(255, 255, 255, 0.22);
-  transform: scale(0.97);
-}
+/* ── Shared Bar Button ───────────────────────────────────────────────── */
+.bar-btn {
+  /* Fixed dimensions — both buttons identical */
+  min-width: 140px;
+  max-width: 140px;
+  height: 40px;
 
-.upload-btn span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  /* Visual */
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.10s ease,
+    box-shadow 0.18s ease;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 0 14px;
+}
+
+.bar-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.bar-btn:active {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(0) scale(0.97);
+  box-shadow: none;
+}
+
+/* Edit Mode — ON highlight */
+.bar-btn.active {
+  background: rgba(99, 179, 237, 0.20);
+  border-color: rgba(99, 179, 237, 0.55);
+  color: #93c5fd;
+}
+
+.bar-btn.active:hover {
+  background: rgba(99, 179, 237, 0.30);
+  border-color: rgba(99, 179, 237, 0.75);
+  color: #bfdbfe;
+}
+
+/* ── Upload Button ─────────────────────────────────────────────────── */
+.upload-btn {
+  /* Inherits .bar-btn styles */
 }
 
 /* ── Edit Mode Button ─────────────────────────────────────────────── */
 .edit-mode-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 10px;
-  padding: 9px 18px;
-  color: #fff;
-  font-size: 14px;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.1s;
-  pointer-events: auto;
-}
-
-.edit-mode-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.edit-mode-btn:active {
-  transform: scale(0.97);
-}
-
-.edit-mode-btn.active {
-  background: rgba(99, 179, 237, 0.25);
-  border-color: rgba(99, 179, 237, 0.6);
-  color: #7dc4f5;
+  /* Inherits .bar-btn styles */
 }
 
 /* ── Annotation Layer ─────────────────────────────────────────────── */
