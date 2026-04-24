@@ -10,7 +10,6 @@ import { AnnotationModal } from '@/components/AnnotationModal';
 import type {
   Annotation,
   AnnotationContent,
-  TextContent,
 } from '@/types/annotation';
 import { migrateAnnotations } from '@/utils/migrate';
 
