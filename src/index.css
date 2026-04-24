@@ -338,3 +338,40 @@ body,
 .annotation-btn.save:hover {
   background: rgba(99, 179, 237, 0.4);
 }
+
+.annotation-btn.save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.annotation-btn.save:disabled:hover {
+  background: rgba(99, 179, 237, 0.25);
+}
+
+/* ── Stub / Placeholder Content Inputs ────────────────────────────────── */
+.annotation-stub {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(10, 10, 15, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.annotation-stub-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.annotation-stub-input > .annotation-input {
+  width: 100%;
+}

@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import type {
+  Annotation,
+  AnnotationContent,
+  TextContent,
+  ImageContent,
+  VideoContent,
+} from '@/types/annotation';
 
-export interface AnnotationData {
-  id: string;
-  text: string;
-  position: { x: number; y: number; z: number };
-}
+/** Subset of Annotation needed by AnnotationLayer — excludes meta */
+export type AnnotationData = Omit<Annotation, 'meta'>;
 
 interface AnnotationLayerProps {
-  annotations: AnnotationData[];
+  annotations: Annotation[];
   cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   editMode: boolean;
@@ -16,6 +20,54 @@ interface AnnotationLayerProps {
   onAnnotationDelete?: (id: string) => void;
   rafIdRef?: React.MutableRefObject<number>;
 }
+
+// ── Content Renderers ─────────────────────────────────────────────────────────
+
+function TextRenderer({ content }: { content: TextContent }) {
+  return <div className="annotation-label">{content.text}</div>;
+}
+
+function ImageStub({ content }: { content: ImageContent }) {
+  return (
+    <div className="annotation-stub">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      {content.alt ?? 'Image'}
+    </div>
+  );
+}
+
+function VideoStub({ content }: { content: VideoContent }) {
+  return (
+    <div className="annotation-stub">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7"/>
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+      </svg>
+      Video
+    </div>
+  );
+}
+
+/** Renders annotation content based on type. Extensible — add new cases here. */
+function AnnotationContentRenderer({ annotation }: { annotation: Annotation }) {
+  switch (annotation.type) {
+    case 'text':
+      return <TextRenderer content={annotation.content} />;
+    case 'image':
+      return <ImageStub content={annotation.content as ImageContent} />;
+    case 'video':
+      return <VideoStub content={annotation.content as VideoContent} />;
+    default:
+      // Exhaustiveness guard — new types not yet handled
+      return null;
+  }
+}
+
+// ── AnnotationLayer ───────────────────────────────────────────────────────────
 
 export function AnnotationLayer({
   annotations,
@@ -27,15 +79,14 @@ export function AnnotationLayer({
   rafIdRef,
 }: AnnotationLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
-  // Keep a live ref to annotations so the RAF loop always has current data
+  // Keep a live ref so the RAF loop always reads current data without re-subscribing
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
 
   useEffect(() => {
-    // RAF loop runs in BOTH edit and view mode — no early return
-    const syncRafLoop = () => {
-      if (!rafIdRef) return;
+    if (!rafIdRef) return;
 
+    const syncRafLoop = () => {
       const layer = layerRef.current;
       const camera = cameraRef.current;
       const container = containerRef.current;
@@ -54,13 +105,11 @@ export function AnnotationLayer({
         const pos = new THREE.Vector3(ann.position.x, ann.position.y, ann.position.z);
         pos.project(camera);
 
-        // Guard against NaN / invalid projection
         if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
           el.style.opacity = '0';
           return;
         }
 
-        // Hide when behind camera
         if (pos.z > 1 || pos.z < -1) {
           el.style.opacity = '0';
           return;
@@ -76,17 +125,15 @@ export function AnnotationLayer({
       rafIdRef.current = requestAnimationFrame(syncRafLoop);
     };
 
-    rafIdRef!.current = requestAnimationFrame(syncRafLoop);
+    rafIdRef.current = requestAnimationFrame(syncRafLoop);
 
     return () => {
-      if (rafIdRef && rafIdRef.current) {
+      if (rafIdRef?.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
     };
   }, [rafIdRef, cameraRef, containerRef]);
 
-  // Always render annotations (both view and edit mode)
-  // Layer gets "edit-mode" class when editing so CSS can show controls always
   return (
     <div
       ref={layerRef}
@@ -96,11 +143,14 @@ export function AnnotationLayer({
         <div
           key={ann.id}
           data-id={ann.id}
-          className="annotation-marker"
+          className={`annotation-marker annotation-marker--${ann.type}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="annotation-dot" />
-          <div className="annotation-label">{ann.text}</div>
+
+          {/* Content rendered by type — extensible via AnnotationContentRenderer */}
+          <AnnotationContentRenderer annotation={ann} />
+
           {editMode && (
             <div className="annotation-actions">
               <button

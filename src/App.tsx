@@ -2,25 +2,33 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
 import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { FloatingBar } from '@/components/FloatingBar';
-import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLayer';
+import {
+  AnnotationLayer,
+  type AnnotationData,
+} from '@/components/AnnotationLayer';
 import { AnnotationModal } from '@/components/AnnotationModal';
+import type {
+  Annotation,
+  AnnotationContent,
+  TextContent,
+} from '@/types/annotation';
+import { migrateAnnotations } from '@/utils/migrate';
 
-const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
+const SAMPLE_PANORAMA = 'https://pannuseum.org/images/alma.jpg';
 const STORAGE_KEY = 'panorama_annotations';
 
-export interface Annotation {
-  id: string;
-  text: string;
-  position: { x: number; y: number; z: number };
-}
+// ── Persistence ─────────────────────────────────────────────────────────────
 
 function loadFromStorage(): Annotation[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
+    return migrateAnnotations(raw);
   } catch {
     return [];
   }
 }
+
+// ── App ──────────────────────────────────────────────────────────────────────
 
 function App() {
   const [imageUrl, setImageUrl] = useState<string>(SAMPLE_PANORAMA);
@@ -29,7 +37,6 @@ function App() {
   const [annotations, setAnnotations] = useState<Annotation[]>(loadFromStorage);
   const [pendingPosition, setPendingPosition] = useState<{ x: number; y: number; z: number } | null>(null);
   const [modalScreenPos, setModalScreenPos] = useState<{ x: number; y: number } | null>(null);
-  // Editing state — annotation being edited (for the modal)
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
 
   // Refs shared with PanoramaViewer
@@ -42,6 +49,8 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations));
   }, [annotations]);
 
+  // ── Image selection ──────────────────────────────────────────────────────
+
   const handleImageSelect = (url: string, fileName: string) => {
     if (prevObjectUrlRef.current?.startsWith('blob:')) {
       URL.revokeObjectURL(prevObjectUrlRef.current);
@@ -53,7 +62,8 @@ function App() {
 
   const handleToggleEditMode = () => setEditMode((prev) => !prev);
 
-  // Opens modal for a new annotation at the clicked 3D position
+  // ── Annotation create ───────────────────────────────────────────────────
+
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
@@ -68,7 +78,8 @@ function App() {
     []
   );
 
-  // Opens modal pre-filled with existing annotation text (for edit)
+  // ── Annotation edit ─────────────────────────────────────────────────────
+
   const handleAnnotationEdit = useCallback(
     (annotation: AnnotationData) => {
       if (!cameraRef.current || !containerRef.current) return;
@@ -87,27 +98,36 @@ function App() {
     []
   );
 
-  // Saves — handles both create and edit
-  const handleSave = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
+  // ── Save ────────────────────────────────────────────────────────────────
+
+  const handleSave = (content: AnnotationContent) => {
+    // Empty guard — cancel if no meaningful content
+    if (content.type === 'text' && !content.text.trim()) {
       setPendingPosition(null);
       setEditingAnnotation(null);
       setModalScreenPos(null);
       return;
     }
 
+    const now = Date.now();
+
     if (editingAnnotation) {
-      // Update existing
+      // Update existing — preserve original createdAt
       setAnnotations((prev) =>
-        prev.map((a) => (a.id === editingAnnotation.id ? { ...a, text: trimmed } : a))
+        prev.map((a) =>
+          a.id === editingAnnotation.id
+            ? { ...a, content, meta: { ...a.meta, updatedAt: now } }
+            : a
+        )
       );
     } else if (pendingPosition) {
       // Create new
       const newAnnotation: Annotation = {
-        id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        text: trimmed,
+        id: `ann_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        type: content.type,
         position: pendingPosition,
+        content,
+        meta: { createdAt: now, updatedAt: now },
       };
       setAnnotations((prev) => [...prev, newAnnotation]);
     }
@@ -116,6 +136,8 @@ function App() {
     setEditingAnnotation(null);
     setModalScreenPos(null);
   };
+
+  // ── Cancel / delete ─────────────────────────────────────────────────────
 
   const handleCancel = () => {
     setPendingPosition(null);
@@ -126,6 +148,11 @@ function App() {
   const handleAnnotationDelete = useCallback((id: string) => {
     setAnnotations((prev) => prev.filter((a) => a.id !== id));
   }, []);
+
+  // ── Derive current content for modal ────────────────────────────────────
+
+  const modalContent: AnnotationContent | null =
+    editingAnnotation?.content ?? (pendingPosition ? { type: 'text', text: '' } : null);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -155,10 +182,10 @@ function App() {
         onToggleEditMode={handleToggleEditMode}
       />
 
-      {modalScreenPos && (
+      {modalScreenPos && modalContent && (
         <AnnotationModal
           position={modalScreenPos}
-          initialText={editingAnnotation?.text}
+          content={modalContent}
           onSave={handleSave}
           onCancel={handleCancel}
         />
