@@ -76,7 +76,7 @@ export function PanoramaViewer({
     // BackSide renders the inner surface so we see the texture from inside.
     const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 32);
     // TEMP: red so we can verify sphere renders before texture is loaded
-    const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide, color: 0xff0000 });
+    const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.name = 'panorama-sphere';
     scene.add(sphere);
