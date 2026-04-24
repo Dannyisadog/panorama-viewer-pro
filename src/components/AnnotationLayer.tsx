@@ -12,6 +12,8 @@ interface AnnotationLayerProps {
   cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   editMode: boolean;
+  onTick?: (timestamp: number) => void;
+  rafIdRef?: React.MutableRefObject<number>;
 }
 
 export function AnnotationLayer({
@@ -19,29 +21,46 @@ export function AnnotationLayer({
   cameraRef,
   containerRef,
   editMode,
+  onTick,
+  rafIdRef,
 }: AnnotationLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
+  // Keep a live ref to annotations so the RAF loop always has current data
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
 
   useEffect(() => {
     if (editMode) return;
 
-    let rafId: number;
-    const updatePositions = () => {
-      rafId = requestAnimationFrame(updatePositions);
+    // Register our tick function into PanoramaViewer's RAF loop
+    if (onTick) {
+      onTick(0);
+    }
+
+    // Sync rafIdRef from PanoramaViewer's animate loop
+    // so we don't run a second independent loop
+    const syncRafLoop = () => {
+      if (!rafIdRef) return;
+
+      const layer = layerRef.current;
       const camera = cameraRef.current;
       const container = containerRef.current;
-      const layer = layerRef.current;
-      if (!camera || !container || !layer) return;
+      if (!layer || !camera || !container) {
+        rafIdRef.current = requestAnimationFrame(syncRafLoop);
+        return;
+      }
 
       const { clientWidth: width, clientHeight: height } = container;
+      const currentAnnotations = annotationsRef.current;
 
-      annotations.forEach((ann) => {
+      currentAnnotations.forEach((ann) => {
         const el = layer.querySelector(`[data-id="${ann.id}"]`) as HTMLElement | null;
         if (!el) return;
 
         const pos = new THREE.Vector3(ann.position.x, ann.position.y, ann.position.z);
         pos.project(camera);
 
+        // Hide when behind camera
         if (pos.z > 1 || pos.z < -1) {
           el.style.opacity = '0';
           return;
@@ -50,14 +69,21 @@ export function AnnotationLayer({
         const screenX = (pos.x * 0.5 + 0.5) * width;
         const screenY = (-pos.y * 0.5 + 0.5) * height;
 
-        el.style.transform = `translate(${screenX}px, ${screenY}px)`;
+        el.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`;
         el.style.opacity = '1';
       });
+
+      rafIdRef.current = requestAnimationFrame(syncRafLoop);
     };
 
-    updatePositions();
-    return () => cancelAnimationFrame(rafId);
-  }, [annotations, cameraRef, containerRef, editMode]);
+    rafIdRef!.current = requestAnimationFrame(syncRafLoop);
+
+    return () => {
+      if (rafIdRef && rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [editMode, onTick, rafIdRef, cameraRef, containerRef]);
 
   if (editMode) return null;
 

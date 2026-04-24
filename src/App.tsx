@@ -33,6 +33,7 @@ function App() {
   // This ref is shared with PanoramaViewer so we can compute screen positions
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rafIdRef = useRef(0);
   const prevObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -92,6 +93,7 @@ function App() {
         onAnnotationCreate={handleAnnotationCreate}
         cameraRef={cameraRef}
         containerRef={containerRef}
+        rafIdRef={rafIdRef}
       />
 
       <AnnotationLayer
@@ -99,6 +101,7 @@ function App() {
         cameraRef={cameraRef}
         containerRef={containerRef}
         editMode={editMode}
+        rafIdRef={rafIdRef}
       />
 
       <FloatingBar

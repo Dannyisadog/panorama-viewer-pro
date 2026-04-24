@@ -124,18 +124,16 @@ body,
   position: absolute;
   top: 0;
   left: 0;
-  transform-origin: left center;
   display: flex;
   align-items: center;
   gap: 6px;
-  animation: annotationFadeIn 0.3s ease forwards;
   pointer-events: none;
   white-space: nowrap;
 }
 
 @keyframes annotationFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .annotation-dot {

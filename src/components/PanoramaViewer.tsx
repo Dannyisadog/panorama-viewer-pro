@@ -14,6 +14,7 @@ export interface PanoramaViewerProps {
   onAnnotationCreate?: (position: { x: number; y: number; z: number }) => void;
   cameraRef?: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef?: React.RefObject<HTMLDivElement | null>;
+  rafIdRef?: React.MutableRefObject<number>;
 }
 
 const SPHERE_RADIUS = 500;
@@ -28,15 +29,17 @@ export function PanoramaViewer({
   onAnnotationCreate,
   cameraRef: externalCameraRef,
   containerRef: externalContainerRef,
+  rafIdRef: externalRafIdRef,
 }: PanoramaViewerProps) {
   // External containerRef (from App) for screen position calculations
   // Internal ref as fallback
   const internalContainerRef = useRef<HTMLDivElement>(null);
 
-  const sceneRef    = useRef<THREE.Scene | null>(null);
-  const cameraRef   = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const sphereRef   = useRef<THREE.Mesh | null>(null);
+  const sceneRef     = useRef<THREE.Scene | null>(null);
+  const cameraRef    = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
+  const sphereRef    = useRef<THREE.Mesh | null>(null);
+  const rafIdRef     = useRef(0);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
@@ -109,6 +112,8 @@ export function PanoramaViewer({
     let rafId = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
+      rafIdRef.current = rafId;
+      if (externalRafIdRef) externalRafIdRef.current = rafId;
 
       if (!isDraggingRef.current) {
         longitudeRef.current += velocityLonRef.current;
