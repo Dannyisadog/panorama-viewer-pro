@@ -73,7 +73,7 @@ export function PanoramaViewer({
     cameraRef.current = camera;
     if (externalCameraRef) externalCameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
     renderer.xr.enabled = false;
@@ -340,6 +340,7 @@ export function PanoramaViewer({
         height: '100%',
         overflow: 'hidden',
         cursor: editMode ? 'crosshair' : 'grab',
+        background: '#000',
       }}
     />
   );
