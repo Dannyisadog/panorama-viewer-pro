@@ -31,6 +31,8 @@ export function PanoramaViewer({
   containerRef: externalContainerRef,
   rafIdRef: externalRafIdRef,
 }: PanoramaViewerProps) {
+  // External containerRef (from App) for screen position calculations
+  // Internal ref as fallback
   const internalContainerRef = useRef<HTMLDivElement>(null);
 
   const sceneRef     = useRef<THREE.Scene | null>(null);
@@ -38,7 +40,6 @@ export function PanoramaViewer({
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
   const sphereRef    = useRef<THREE.Mesh | null>(null);
   const rafIdRef     = useRef(0);
-  const cleanupRef   = useRef<(() => void) | null>(null);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
@@ -50,17 +51,25 @@ export function PanoramaViewer({
   const velocityLonRef  = useRef(0);
   const velocityLatRef  = useRef(0);
 
+  // Keep editMode ref current so click handler always reads latest value
   const editModeRef = useRef(editMode);
   editModeRef.current = editMode;
 
   const initializedRef = useRef(false);
 
-  // ── initThree (defined outside effects so it can be called from either) ──
+  const setContainerRef = useCallback((node: HTMLDivElement | null) => {
+    // When external ref is provided, write to it. Also maintain internal for self-use.
+    if (externalContainerRef) {
+      (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+    internalContainerRef.current = node;
+    if (node && !initializedRef.current) {
+      initializedRef.current = true;
+      initThree(node);
+    }
+  }, [externalContainerRef]);
 
   function initThree(container: HTMLDivElement) {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     const w = container.clientWidth  || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
 
@@ -81,9 +90,6 @@ export function PanoramaViewer({
     rendererRef.current = renderer;
 
     const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 32);
-    // Invert X: Pannellum equirectangular panoramas are left-handed.
-    // Without this the camera looks at the sphere's "back face" (no UV) → invisible.
-    geometry.scale(-1, 1, 1);
     const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.name = 'panorama-sphere';
@@ -140,7 +146,7 @@ export function PanoramaViewer({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if (editModeRef.current) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = true;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
       velocityLonRef.current = 0;
@@ -150,10 +156,11 @@ export function PanoramaViewer({
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current || !lastPointerRef.current) return;
-      if (editModeRef.current) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       const dx = e.clientX - lastPointerRef.current.x;
       const dy = e.clientY - lastPointerRef.current.y;
       const speed = 0.003;
+      // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
       let newLat = clamp(latitudeRef.current + dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
@@ -164,11 +171,13 @@ export function PanoramaViewer({
     };
 
     const onPointerUp = () => {
+      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = false;
       lastPointerRef.current = null;
     };
 
     const onClick = (e: MouseEvent) => {
+      // Read editMode from ref to always get current value (not stale closure)
       if (!editModeRef.current || !onAnnotationCreate) return;
       const dx = e.clientX - (lastPointerRef.current?.x ?? e.clientX);
       const dy = e.clientY - (lastPointerRef.current?.y ?? e.clientY);
@@ -188,7 +197,7 @@ export function PanoramaViewer({
     };
 
     const onWheel = (e: WheelEvent) => {
-      if (editModeRef.current) return;
+      if (editModeRef.current) return; // Disable zoom in edit mode
       e.preventDefault();
       const delta = e.deltaY || e.detail || 0;
       targetFovRef.current = clamp(targetFovRef.current + delta * 0.05, minFov, maxFov);
@@ -196,7 +205,7 @@ export function PanoramaViewer({
 
     let lastTouch: { x: number; y: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
-      if (editModeRef.current) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       if (e.touches.length !== 1) return;
       isDraggingRef.current = true;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -205,11 +214,12 @@ export function PanoramaViewer({
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current || e.touches.length !== 1 || !lastTouch) return;
-      if (editModeRef.current) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       e.preventDefault();
       const dx = e.touches[0].clientX - lastTouch.x;
       const dy = e.touches[0].clientY - lastTouch.y;
       const speed = 0.003;
+      // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
       let newLat = clamp(latitudeRef.current + dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
@@ -250,8 +260,7 @@ export function PanoramaViewer({
     }
     if (imageUrl) loadTexture(imageUrl);
 
-    // Store cleanup fn so unmount effect can fire it
-    cleanupRef.current = () => {
+    return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
       container.removeEventListener('pointerdown',  onPointerDown);
@@ -270,9 +279,7 @@ export function PanoramaViewer({
       }
       geometry.dispose();
       renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       scene.remove(sphere);
       scene.clear();
       sceneRef.current    = null;
@@ -283,37 +290,14 @@ export function PanoramaViewer({
     };
   }
 
-  // ── Mount: callback ref (fires on first render + updates) ──────────────────
-
-  const setContainerRef = useCallback((node: HTMLDivElement | null) => {
-    if (externalContainerRef) {
-      (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-    }
-    internalContainerRef.current = node;
-    if (node && !initializedRef.current) {
-      initThree(node);
-    }
-  }, [externalContainerRef]);
-
-  // ── Mount: if externalContainerRef was already set before first render ──────
-
-  useEffect(() => {
-    const container = (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>)?.current;
-    if (container && !initializedRef.current) {
-      initThree(container);
-    }
-  }, [externalContainerRef]);
-
-  // ── Unmount cleanup ─────────────────────────────────────────────────────────
-
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cleanupRef.current?.();
+      // Cleanup handled by initThree's return
     };
   }, []);
 
-  // ── Texture swap ───────────────────────────────────────────────────────────
-
+  // Texture swap effect
   useEffect(() => {
     if (!imageUrl || !sphereRef.current) return;
     const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
