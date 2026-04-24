@@ -84,7 +84,7 @@ export function PanoramaViewer({
     // Invert X: Pannellum equirectangular panoramas are left-handed.
     // Without this the camera looks at the sphere's "back face" (no UV) → invisible.
     geometry.scale(-1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.name = 'panorama-sphere';
     scene.add(sphere);
