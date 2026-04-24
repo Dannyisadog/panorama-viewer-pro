@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { clamp, lerp } from '@/utils/math';
 
@@ -29,50 +29,56 @@ export function PanoramaViewer({
   cameraRef: externalCameraRef,
   containerRef: externalContainerRef,
 }: PanoramaViewerProps) {
+  // External containerRef (from App) for screen position calculations
+  // Internal ref as fallback
   const internalContainerRef = useRef<HTMLDivElement>(null);
-  const containerRefFinal = externalContainerRef ?? internalContainerRef;
 
   const sceneRef    = useRef<THREE.Scene | null>(null);
   const cameraRef   = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sphereRef   = useRef<THREE.Mesh | null>(null);
 
-  // Expose cameraRef to parent
-  useEffect(() => {
-    if (externalCameraRef) externalCameraRef.current = cameraRef.current;
-  });
-
-  // Spherical coords
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
   const fovRef       = useRef(initialFov);
   const targetFovRef = useRef(initialFov);
 
-  // Drag state
   const isDraggingRef   = useRef(false);
   const lastPointerRef  = useRef<{ x: number; y: number } | null>(null);
   const velocityLonRef  = useRef(0);
   const velocityLatRef  = useRef(0);
 
-  useEffect(() => {
-    const container = containerRefFinal.current;
-    if (!container) return;
+  // Keep editMode ref current so click handler always reads latest value
+  const editModeRef = useRef(editMode);
+  editModeRef.current = editMode;
 
+  const initializedRef = useRef(false);
+
+  const setContainerRef = useCallback((node: HTMLDivElement | null) => {
+    // When external ref is provided, write to it. Also maintain internal for self-use.
+    if (externalContainerRef) {
+      (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+    internalContainerRef.current = node;
+    if (node && !initializedRef.current) {
+      initializedRef.current = true;
+      initThree(node);
+    }
+  }, [externalContainerRef]);
+
+  function initThree(container: HTMLDivElement) {
     const w = container.clientWidth  || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
 
-    // Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(initialFov, w / h, 0.1, 2000);
     camera.position.set(0, 0, 0);
     camera.lookAt(0, 0, 1);
     cameraRef.current = camera;
     if (externalCameraRef) externalCameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
@@ -80,7 +86,6 @@ export function PanoramaViewer({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Sphere
     const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 32);
     const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
     const sphere = new THREE.Mesh(geometry, material);
@@ -88,10 +93,8 @@ export function PanoramaViewer({
     scene.add(sphere);
     sphereRef.current = sphere;
 
-    // Raycaster for annotation placement
     const raycaster = new THREE.Raycaster();
 
-    // Update camera
     const updateCamera = () => {
       const theta = longitudeRef.current;
       const phi   = latitudeRef.current;
@@ -103,7 +106,6 @@ export function PanoramaViewer({
       camera.updateProjectionMatrix();
     };
 
-    // Animation loop
     let rafId = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
@@ -127,7 +129,6 @@ export function PanoramaViewer({
     };
     animate();
 
-    // Resize
     const handleResize = () => {
       const nw = container.clientWidth;
       const nh = container.clientHeight;
@@ -138,7 +139,6 @@ export function PanoramaViewer({
     const ro = new ResizeObserver(handleResize);
     ro.observe(container);
 
-    // Pointer events
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       isDraggingRef.current = true;
@@ -168,8 +168,8 @@ export function PanoramaViewer({
     };
 
     const onClick = (e: MouseEvent) => {
-      if (!editMode || !onAnnotationCreate) return;
-      // Distinguish click from drag: only fire if pointer barely moved
+      // Read editMode from ref to always get current value (not stale closure)
+      if (!editModeRef.current || !onAnnotationCreate) return;
       const dx = e.clientX - (lastPointerRef.current?.x ?? e.clientX);
       const dy = e.clientY - (lastPointerRef.current?.y ?? e.clientY);
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) return;
@@ -193,7 +193,6 @@ export function PanoramaViewer({
       targetFovRef.current = clamp(targetFovRef.current + delta * 0.05, minFov, maxFov);
     };
 
-    // Touch
     let lastTouch: { x: number; y: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
@@ -231,7 +230,6 @@ export function PanoramaViewer({
     container.addEventListener('touchmove',     onTouchMove,  { passive: false });
     container.addEventListener('touchend',     onTouchEnd);
 
-    // Load texture
     function loadTexture(url: string) {
       new THREE.TextureLoader().load(
         url,
@@ -249,7 +247,6 @@ export function PanoramaViewer({
     }
     if (imageUrl) loadTexture(imageUrl);
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
@@ -276,8 +273,15 @@ export function PanoramaViewer({
       cameraRef.current  = null;
       rendererRef.current = null;
       sphereRef.current   = null;
+      initializedRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup handled by initThree's return
+    };
   }, []);
 
   // Texture swap effect
@@ -300,7 +304,7 @@ export function PanoramaViewer({
 
   return (
     <div
-      ref={internalContainerRef}
+      ref={setContainerRef}
       className={className}
       style={{
         width: '100%',

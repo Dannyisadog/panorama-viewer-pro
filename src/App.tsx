@@ -30,11 +30,11 @@ function App() {
   const [pendingPosition, setPendingPosition] = useState<{ x: number; y: number; z: number } | null>(null);
   const [modalScreenPos, setModalScreenPos] = useState<{ x: number; y: number } | null>(null);
 
+  // This ref is shared with PanoramaViewer so we can compute screen positions
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const prevObjectUrlRef = useRef<string | null>(null);
 
-  // Persist to localStorage on change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations));
   }, [annotations]);
@@ -52,7 +52,6 @@ function App() {
 
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
-      // Project to screen for modal placement
       if (!cameraRef.current || !containerRef.current) return;
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
