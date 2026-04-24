@@ -115,7 +115,7 @@ export function PanoramaViewer({
       rafIdRef.current = rafId;
       if (externalRafIdRef) externalRafIdRef.current = rafId;
 
-      if (!isDraggingRef.current) {
+      if (!isDraggingRef.current && !editModeRef.current) {
         longitudeRef.current += velocityLonRef.current;
         latitudeRef.current  += velocityLatRef.current;
         velocityLonRef.current *= 0.92;
@@ -146,6 +146,7 @@ export function PanoramaViewer({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = true;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
       velocityLonRef.current = 0;
@@ -155,6 +156,7 @@ export function PanoramaViewer({
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current || !lastPointerRef.current) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       const dx = e.clientX - lastPointerRef.current.x;
       const dy = e.clientY - lastPointerRef.current.y;
       const speed = 0.003;
@@ -168,6 +170,7 @@ export function PanoramaViewer({
     };
 
     const onPointerUp = () => {
+      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = false;
       lastPointerRef.current = null;
     };
@@ -193,6 +196,7 @@ export function PanoramaViewer({
     };
 
     const onWheel = (e: WheelEvent) => {
+      if (editModeRef.current) return; // Disable zoom in edit mode
       e.preventDefault();
       const delta = e.deltaY || e.detail || 0;
       targetFovRef.current = clamp(targetFovRef.current + delta * 0.05, minFov, maxFov);
@@ -200,6 +204,7 @@ export function PanoramaViewer({
 
     let lastTouch: { x: number; y: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
+      if (editModeRef.current) return; // Disable rotation in edit mode
       if (e.touches.length !== 1) return;
       isDraggingRef.current = true;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -208,6 +213,7 @@ export function PanoramaViewer({
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current || e.touches.length !== 1 || !lastTouch) return;
+      if (editModeRef.current) return; // Disable rotation in edit mode
       e.preventDefault();
       const dx = e.touches[0].clientX - lastTouch.x;
       const dy = e.touches[0].clientY - lastTouch.y;

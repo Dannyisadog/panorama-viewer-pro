@@ -131,35 +131,49 @@ body,
   white-space: nowrap;
 }
 
+/* In edit mode, marker itself gets pointer-events so buttons work */
+.edit-mode .annotation-marker {
+  pointer-events: auto;
+}
+
 @keyframes annotationFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
 .annotation-dot {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
   flex-shrink: 0;
   pointer-events: none;
 }
 
 .annotation-label {
-  background: rgba(15, 15, 20, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 10, 15, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   color: #fff;
   font-size: 13px;
   font-family: inherit;
+  font-weight: 500;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Stronger label style in edit mode */
+.edit-mode .annotation-label {
+  background: rgba(20, 25, 40, 0.9);
+  border-color: rgba(99, 179, 237, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 179, 237, 0.15);
 }
 
 /* ── Annotation Actions (Edit/Delete buttons) ─────────────────────── */
@@ -172,35 +186,46 @@ body,
   transition: opacity 0.15s ease;
 }
 
+/* Always visible in edit mode */
+.edit-mode .annotation-actions {
+  opacity: 1;
+}
+
 .annotation-marker:hover .annotation-actions,
 .annotation-marker:focus-within .annotation-actions {
   opacity: 1;
 }
 
 .annotation-action-btn {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  background: rgba(20, 20, 28, 0.8);
-  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 7px;
+  background: rgba(25, 25, 35, 0.88);
+  color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   padding: 0;
+  backdrop-filter: blur(8px);
 }
 
 .annotation-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: scale(1.08);
+}
+
+.annotation-action-btn:active {
+  transform: scale(0.94);
 }
 
 .annotation-action-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(220, 50, 50, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
   color: #fca5a5;
 }
 

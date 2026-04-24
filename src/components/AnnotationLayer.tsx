@@ -81,8 +81,12 @@ export function AnnotationLayer({
   }, [editMode, rafIdRef, cameraRef, containerRef]);
 
   // Always render annotations (both view and edit mode)
+  // Layer gets "edit-mode" class when editing so CSS can show controls always
   return (
-    <div ref={layerRef} className="annotation-layer">
+    <div
+      ref={layerRef}
+      className={`annotation-layer${editMode ? ' edit-mode' : ''}`}
+    >
       {annotations.map((ann) => (
         <div
           key={ann.id}
