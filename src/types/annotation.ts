@@ -2,22 +2,25 @@
 
 export type AnnotationType = 'text' | 'image' | 'video';
 
-// Unified content object — one field is populated based on `type`
+// Each content interface is self-tagged so TypeScript can discriminate the union
 export interface TextContent {
+  type: 'text';
   text: string;
 }
 
 export interface ImageContent {
+  type: 'image';
   url: string;
   alt?: string;
 }
 
 export interface VideoContent {
+  type: 'video';
   url: string;
   thumbnail?: string;
 }
 
-// Discriminated union — `type` field narrows the content shape
+// Discriminated union — the `type` field on each member narrows the union
 export type AnnotationContent = TextContent | ImageContent | VideoContent;
 
 // ── Position ─────────────────────────────────────────────────────────────────
@@ -28,14 +31,14 @@ export interface AnnotationPosition {
   z: number;
 }
 
-// ── Meta ────────────────────────────────────────────────────────────────────
+// ── Meta ─────────────────────────────────────────────────────────────────────
 
 export interface AnnotationMeta {
   createdAt: number;
   updatedAt: number;
 }
 
-// ── Full Annotation ──────────────────────────────────────────────────────────
+// ── Full Annotation ─────────────────────────────────────────────────────────
 
 export interface Annotation {
   id: string;
@@ -47,7 +50,7 @@ export interface Annotation {
 
 // ── Legacy Shape (backward compat) ──────────────────────────────────────────
 
-/** Old format: flat { id, text, position } */
+/** Old flat format: { id, text, position } */
 export interface LegacyAnnotation {
   id: string;
   text: string;
@@ -57,33 +60,13 @@ export interface LegacyAnnotation {
 // ── Type Guards ─────────────────────────────────────────────────────────────
 
 export function isTextAnnotation(ann: Annotation): ann is Annotation & { content: TextContent } {
-  return ann.type === 'text';
+  return ann.content.type === 'text';
 }
 
 export function isImageAnnotation(ann: Annotation): ann is Annotation & { content: ImageContent } {
-  return ann.type === 'image';
+  return ann.content.type === 'image';
 }
 
 export function isVideoAnnotation(ann: Annotation): ann is Annotation & { content: VideoContent } {
-  return ann.type === 'video';
-}
-
-/** Confirms an unknown value is a valid Annotation[] */
-export function isAnnotationArray(val: unknown): val is Annotation[] {
-  return Array.isArray(val) && val.every(isAnnotation);
-}
-
-/** Confirms an unknown value is a valid Annotation */
-export function isAnnotation(val: unknown): val is Annotation {
-  if (!val || typeof val !== 'object') return false;
-  const a = val as Record<string, unknown>;
-  return (
-    typeof a.id === 'string' &&
-    typeof a.position === 'object' &&
-    a.position !== null &&
-    typeof (a.position as Record<string, unknown>).x === 'number' &&
-    typeof (a.position as Record<string, unknown>).y === 'number' &&
-    typeof (a.position as Record<string, unknown>).z === 'number' &&
-    ['text', 'image', 'video'].includes(a.type as string)
-  );
+  return ann.content.type === 'video';
 }

@@ -24,7 +24,7 @@ function migrateOne(raw: LegacyAnnotation): Annotation {
     id: raw.id,
     type: 'text',
     position: raw.position,
-    content: { text: raw.text },
+    content: { type: 'text', text: raw.text },
     meta: { createdAt: now, updatedAt: now },
   };
 }

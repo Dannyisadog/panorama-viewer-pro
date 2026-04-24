@@ -31,9 +31,9 @@ function TextInput({
       type="text"
       className="annotation-input"
       placeholder="Enter annotation text..."
-      onChange={(e) => onChange({ text: e.target.value })}
+      onChange={(e) => onChange({ type: 'text', text: (e.target as HTMLInputElement).value })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onChange({ text: e.target.value });
+        if (e.key === 'Enter') onChange({ type: 'text', text: (e.target as HTMLInputElement).value });
       }}
     />
   );
@@ -58,14 +58,14 @@ function ImageStubInput({
         className="annotation-input"
         placeholder="Image URL..."
         value={content.url}
-        onChange={(e) => onChange({ url: e.target.value, alt: content.alt })}
+        onChange={(e) => onChange({ type: 'image', url: e.target.value, alt: content.alt })}
       />
       <input
         type="text"
         className="annotation-input annotation-input--alt"
         placeholder="Alt text (optional)"
         value={content.alt ?? ''}
-        onChange={(e) => onChange({ url: content.url, alt: e.target.value })}
+        onChange={(e) => onChange({ type: 'image', url: content.url, alt: e.target.value })}
       />
     </div>
   );
@@ -89,7 +89,7 @@ function VideoStubInput({
         className="annotation-input"
         placeholder="Video URL..."
         value={content.url}
-        onChange={(e) => onChange({ url: e.target.value, thumbnail: content.thumbnail })}
+        onChange={(e) => onChange({ type: 'video', url: e.target.value, thumbnail: content.thumbnail })}
       />
     </div>
   );

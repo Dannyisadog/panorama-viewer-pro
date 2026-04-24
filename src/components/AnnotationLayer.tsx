@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type {
   Annotation,
-  AnnotationContent,
   TextContent,
   ImageContent,
   VideoContent,
@@ -35,12 +34,12 @@ function ImageStub({ content }: { content: ImageContent }) {
         <circle cx="8.5" cy="8.5" r="1.5"/>
         <polyline points="21 15 16 10 5 21"/>
       </svg>
-      {content.alt ?? 'Image'}
+      {(content as ImageContent).alt ?? 'Image'}
     </div>
   );
 }
 
-function VideoStub({ content }: { content: VideoContent }) {
+function VideoStub({ content: _content }: { content: VideoContent }) {
   return (
     <div className="annotation-stub">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,13 +55,12 @@ function VideoStub({ content }: { content: VideoContent }) {
 function AnnotationContentRenderer({ annotation }: { annotation: Annotation }) {
   switch (annotation.type) {
     case 'text':
-      return <TextRenderer content={annotation.content} />;
+      return <TextRenderer content={annotation.content as TextContent} />;
     case 'image':
       return <ImageStub content={annotation.content as ImageContent} />;
     case 'video':
       return <VideoStub content={annotation.content as VideoContent} />;
     default:
-      // Exhaustiveness guard — new types not yet handled
       return null;
   }
 }

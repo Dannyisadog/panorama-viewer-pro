@@ -115,7 +115,14 @@ function App() {
       setAnnotations((prev) =>
         prev.map((a) =>
           a.id === editingAnnotation.id
-            ? { ...a, content, meta: { ...a.meta, updatedAt: now } }
+            ? {
+                ...a,
+                content,
+                meta: {
+                  createdAt: a.meta?.createdAt ?? now,
+                  updatedAt: now,
+                },
+              }
             : a
         )
       );
