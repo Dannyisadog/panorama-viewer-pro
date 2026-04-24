@@ -160,12 +160,13 @@ export function PanoramaViewer({
       const dx = e.clientX - lastPointerRef.current.x;
       const dy = e.clientY - lastPointerRef.current.y;
       const speed = 0.003;
-      let newLon = longitudeRef.current - dx * speed;
-      let newLat = clamp(latitudeRef.current - dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+      // Invert: positive drag moves the world in the same direction (grab-world feel)
+      let newLon = longitudeRef.current + dx * speed;
+      let newLat = clamp(latitudeRef.current + dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
       latitudeRef.current  = newLat;
-      velocityLonRef.current = -dx * speed;
-      velocityLatRef.current = -dy * speed;
+      velocityLonRef.current = dx * speed;
+      velocityLatRef.current = dy * speed;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
     };
 
@@ -218,12 +219,13 @@ export function PanoramaViewer({
       const dx = e.touches[0].clientX - lastTouch.x;
       const dy = e.touches[0].clientY - lastTouch.y;
       const speed = 0.003;
-      let newLon = longitudeRef.current - dx * speed;
-      let newLat = clamp(latitudeRef.current - dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+      // Invert: positive drag moves the world in the same direction (grab-world feel)
+      let newLon = longitudeRef.current + dx * speed;
+      let newLat = clamp(latitudeRef.current + dy * speed, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
       longitudeRef.current = newLon;
       latitudeRef.current  = newLat;
-      velocityLonRef.current = -dx * speed;
-      velocityLatRef.current = -dy * speed;
+      velocityLonRef.current = dx * speed;
+      velocityLatRef.current = dy * speed;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
     const onTouchEnd = () => {
