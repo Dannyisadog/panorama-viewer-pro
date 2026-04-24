@@ -104,10 +104,16 @@ export function PanoramaViewer({
     };
 
     let rafId = 0;
+    let frameCount = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       rafIdRef.current = rafId;
       if (externalRafIdRef) externalRafIdRef.current = rafId;
+
+      frameCount++;
+      if (frameCount <= 3) {
+        console.log(`[PanoramaViewer] frame ${frameCount} render() called, scene.children=${scene.children.length}, sphere.visible=${sphere.visible}, camera.fov=${camera.fov}`);
+      }
 
       if (!isDraggingRef.current && !editModeRef.current) {
         longitudeRef.current += velocityLonRef.current;
@@ -125,6 +131,9 @@ export function PanoramaViewer({
 
       updateCamera();
       renderer.render(scene, camera);
+      if (frameCount <= 3) {
+        console.log(`[PanoramaViewer] frame ${frameCount} rendered, camera.position=(${camera.position.x},${camera.position.y},${camera.position.z}), target=(${camera.getWorldDirection(new THREE.Vector3()).x.toFixed(2)},...)`);
+      }
     };
     animate();
 
