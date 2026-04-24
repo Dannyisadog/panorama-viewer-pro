@@ -13,7 +13,7 @@ import type {
 } from '@/types/annotation';
 import { migrateAnnotations } from '@/utils/migrate';
 
-const SAMPLE_PANORAMA = 'https://images.pexels.com/photos/3601425/pexels-photo-3601425.jpeg?w=4096';
+const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 const STORAGE_KEY = 'panorama_annotations';
 
 // ── Persistence ─────────────────────────────────────────────────────────────
