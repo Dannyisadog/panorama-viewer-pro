@@ -39,6 +39,11 @@ export function AnnotationLayer({
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
 
+  // Track which annotation IDs have been positioned by the RAF loop.
+  // An annotation is hidden until its first projected position is applied.
+  // This prevents the brief (0,0) flash mount before the RAF tick runs.
+  const positionedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     // RAF loop runs in BOTH edit and view mode — no early return
     const syncRafLoop = () => {
@@ -64,13 +69,13 @@ export function AnnotationLayer({
 
         // Guard against NaN / invalid projection
         if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
-          el.style.opacity = '0';
+          el.style.visibility = 'hidden';
           return;
         }
 
         // Hide when behind camera
         if (pos.z > 1 || pos.z < -1) {
-          el.style.opacity = '0';
+          el.style.visibility = 'hidden';
           return;
         }
 
@@ -78,7 +83,14 @@ export function AnnotationLayer({
         const screenY = (-pos.y * 0.5 + 0.5) * height;
 
         el.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`;
-        el.style.opacity = '1';
+
+        // First time we position this annotation — mark it visible and clear the --new flag
+        // so the pop-in animation only plays on first paint, not every mount
+        if (!positionedRef.current.has(ann.id)) {
+          positionedRef.current.add(ann.id);
+          el.style.visibility = 'visible';
+          el.classList.remove('annotation-marker--new');
+        }
       });
 
       rafIdRef.current = requestAnimationFrame(syncRafLoop);
@@ -95,7 +107,6 @@ export function AnnotationLayer({
 
   // Always render annotations (both view and edit mode)
   // Layer gets "edit-mode" class when editing so CSS can show controls always
-  console.log('[AnnotationLayer] rendering, annotations count:', annotations.length, 'editMode:', editMode);
   return (
     <div
       ref={layerRef}
