@@ -5,6 +5,7 @@ interface FloatingBarProps {
   selectedFileName?: string;
   editMode: boolean;
   onToggleEditMode: () => void;
+  user?: import('@supabase/supabase-js').User | null;
 }
 
 export function FloatingBar({
@@ -12,6 +13,7 @@ export function FloatingBar({
   selectedFileName,
   editMode,
   onToggleEditMode,
+  user,
 }: FloatingBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -28,15 +30,29 @@ export function FloatingBar({
       <div className="floating-bar__group">
         {/* Edit Mode Toggle */}
         <button
-          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''}`}
+          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''} ${!user ? 'locked' : ''}`}
           onClick={onToggleEditMode}
-          title={editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+          title={!user ? 'Login to edit' : editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          <span>{editMode ? 'Exit Edit' : 'Edit Mode'}</span>
+          {editMode ? (
+            // Exit edit icon
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          ) : !user ? (
+            // Lock icon — not logged in
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          ) : (
+            // Edit icon — logged in
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          )}
+          <span>{editMode ? 'Exit Edit' : !user ? 'Edit Mode' : 'Edit Mode'}</span>
         </button>
 
         {/* Upload Button */}

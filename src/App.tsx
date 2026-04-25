@@ -85,7 +85,13 @@ function App() {
     setSelectedFileName(fileName);
   };
 
-  const handleToggleEditMode = () => setEditMode((prev) => !prev);
+  const handleToggleEditMode = () => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setEditMode((prev) => !prev);
+  };
 
   // Opens modal for a new annotation at the clicked 3D position
   const handleAnnotationCreate = useCallback(
@@ -201,6 +207,7 @@ function App() {
         selectedFileName={selectedFileName}
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
+        user={user}
       />
 
       <LoginButton

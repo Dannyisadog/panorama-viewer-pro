@@ -129,6 +129,15 @@ body,
   /* Inherits .bar-btn styles */
 }
 
+.edit-mode-btn.locked {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.edit-mode-btn.locked:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Annotation Layer ─────────────────────────────────────────────── */
 .annotation-layer {
   position: absolute;
