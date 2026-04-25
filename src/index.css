@@ -619,7 +619,15 @@ body,
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-right: 1px solid rgba(255, 255, 255, 0.07);
 
-  pointer-events: none; /* let clicks pass through empty areas to canvas */
+  /* Collapsible — slide animation */
+  pointer-events: none;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.left-sidebar.left-sidebar--open {
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .left-sidebar__section {
@@ -716,4 +724,55 @@ body,
 .sidebar-btn--avatar {
   padding: 0;
   overflow: hidden;
+}
+
+/* ── Hamburger Button ─────────────────────────────────────────────────────── */
+.hamburger {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 300;
+
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(10, 10, 18, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0;
+
+  transition: background 0.15s;
+  pointer-events: auto;
+}
+
+.hamburger:hover {
+  background: rgba(30, 30, 45, 0.82);
+}
+
+.hamburger__line {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hamburger--open .hamburger__line:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger--open .hamburger__line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger--open .hamburger__line:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
 }

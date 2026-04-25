@@ -4,6 +4,7 @@ interface LeftSidebarProps {
   user: User | null;
   isLoading?: boolean;
   editMode: boolean;
+  isOpen: boolean;
   onToggleEditMode: () => void;
   onLoginClick: () => void;
   onLogout: () => void;
@@ -31,6 +32,7 @@ export function LeftSidebar({
   user,
   isLoading,
   editMode,
+  isOpen,
   onToggleEditMode,
   onLoginClick,
   onLogout,
@@ -48,7 +50,7 @@ export function LeftSidebar({
   };
 
   return (
-    <aside className="left-sidebar">
+    <aside className={`left-sidebar${isOpen ? ' left-sidebar--open' : ''}`}>
       {/* ── Login / Account ─────────────────────────── */}
       <div className="left-sidebar__section">
         {isLoading ? (

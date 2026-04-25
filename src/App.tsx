@@ -6,6 +6,7 @@ import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLay
 import { AnnotationModal } from '@/components/AnnotationModal';
 import { LoginModal } from '@/components/LoginModal';
 import { LeftSidebar } from '@/components/LeftSidebar';
+import { HamburgerButton } from '@/components/HamburgerButton';
 import { useAuth } from '@/hooks/useAuth';
 import {
   loadAnnotations,
@@ -29,6 +30,7 @@ function App() {
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -205,10 +207,16 @@ function App() {
         user={user}
       />
 
+      <HamburgerButton
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen((prev) => !prev)}
+      />
+
       <LeftSidebar
         user={user}
         isLoading={authLoading}
         editMode={editMode}
+        isOpen={isSidebarOpen}
         onToggleEditMode={handleToggleEditMode}
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={signOut}
