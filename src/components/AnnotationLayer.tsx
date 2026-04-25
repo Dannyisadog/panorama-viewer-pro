@@ -95,6 +95,7 @@ export function AnnotationLayer({
 
   // Always render annotations (both view and edit mode)
   // Layer gets "edit-mode" class when editing so CSS can show controls always
+  console.log('[AnnotationLayer] rendering, annotations count:', annotations.length, 'editMode:', editMode);
   return (
     <div
       ref={layerRef}

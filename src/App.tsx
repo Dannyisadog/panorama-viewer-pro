@@ -143,6 +143,7 @@ function Editor() {
       };
       // Optimistic update
       setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      console.log('[App] handleSave editing:', editingAnnotation.id, 'project_id:', editingAnnotation.project_id);
       if (user && editingAnnotation.project_id) {
         await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, user);
       }
@@ -159,8 +160,13 @@ function Editor() {
         updatedAt: now,
       };
 
+      console.log('[App] handleSave creating:', tempId, 'project_id:', pendingProjectId, 'annotations count before:', annotations.length);
+
       // ── Step 1: Optimistic local state update (always, immediately) ──
-      setAnnotations((prev) => [...prev, newAnnotation]);
+      setAnnotations((prev) => {
+        console.log('[App] setAnnotations callback, prev count:', prev.length, '→ new count:', prev.length + 1);
+        return [...prev, newAnnotation];
+      });
 
       // ── Step 2: Persist to Supabase ───────────────────────────────────
       const saved = await saveAnnotation(
