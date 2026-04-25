@@ -26,6 +26,7 @@ function Editor() {
 
   // ── From ProjectContext ────────────────────────────────────────────────────
   const {
+    projects,
     currentProject,
     currentPanorama,
     setCurrentPanorama,
@@ -93,8 +94,13 @@ function Editor() {
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
+      // Guard: don't allow placing annotations if no project is loaded yet
+      if (!currentProject) {
+        console.warn('[App] handleAnnotationCreate: no currentProject, ignoring click');
+        return;
+      }
       // Capture projectId NOW, not when the modal saves — avoids race with project switch
-      const projectId = currentProject?.id ?? null;
+      const projectId = currentProject.id;
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
@@ -148,20 +154,28 @@ function Editor() {
       if (user && editingAnnotation.project_id) {
         await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, user);
       }
-    } else if (pendingPosition && pendingProjectId) {
+    } else if (pendingPosition) {
+      // Fallback chain: pendingProjectId (from click-time capture) → currentProject → projects[0]
+      const effectiveProjectId = pendingProjectId ?? currentProject?.id ?? projects[0]?.id ?? null;
+      if (!effectiveProjectId) {
+        console.error('[App] handleSave: no projectId available, cannot save annotation');
+        setPendingPosition(null);
+        setModalScreenPos(null);
+        return;
+      }
       const now = Date.now();
       const tempId = generateId();
       const newAnnotation: Annotation = {
         id: tempId,
         type: 'text',
-        project_id: pendingProjectId,
+        project_id: effectiveProjectId,
         position: pendingPosition,
         content: { text: trimmed },
         createdAt: now,
         updatedAt: now,
       };
 
-      console.log('[App] handleSave creating:', tempId, 'project_id:', pendingProjectId, 'annotations count before:', annotations.length);
+      console.log('[App] handleSave creating:', tempId, 'project_id:', effectiveProjectId, 'annotations count before:', annotations.length);
 
       // ── Step 1: Optimistic local state update (always, immediately) ──
       setAnnotations((prev) => {
@@ -171,8 +185,8 @@ function Editor() {
 
       // ── Step 2: Persist to Supabase ───────────────────────────────────
       const saved = await saveAnnotation(
-        { id: tempId, type: 'text', project_id: pendingProjectId, position: pendingPosition, content: { text: trimmed } },
-        pendingProjectId,
+        { id: tempId, type: 'text', project_id: effectiveProjectId, position: pendingPosition, content: { text: trimmed } },
+        effectiveProjectId,
         user
       );
 
