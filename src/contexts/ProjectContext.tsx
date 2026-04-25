@@ -85,31 +85,49 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   useEffect(() => { userRef.current = user; }, [user]);
 
   // ── Switch to a different project ─────────────────────────────────────────────
-  const setCurrentProject = useCallback(async (project: Project) => {
-    if (!userRef.current) return;
-
-    setCurrentProjectState(project);
-    setIsLoadingAnnotations(true);
-    setAnnotations([]);
-
-    try {
-      // Load all panoramas for this project
-      const [allPanoramas, defaultPanorama] = await Promise.all([
-        fetchPanoramas(project.id, userRef.current),
-        fetchDefaultPanorama(project.id, userRef.current),
-      ]);
-
+  const setCurrentProject = useCallback(
+    async (project: Project) => {
       if (!userRef.current) return;
-      setPanoramas(allPanoramas);
-      setCurrentPanorama(defaultPanorama ?? null);
 
-      // Load annotations for the default panorama's project
-      const anns = await loadAnnotations(project.id, userRef.current);
-      if (userRef.current) setAnnotations(anns);
-    } finally {
-      setIsLoadingAnnotations(false);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      // Immediately show "no panorama" state so the viewer clears stale texture
+      setCurrentProjectState(project);
+      setCurrentPanorama(null);
+      setPanoramas([]);
+      setAnnotations([]);
+      setIsLoadingAnnotations(true);
+
+      console.debug('[ProjectContext] Switching to project:', project.id, project.name);
+
+      try {
+        // Load all panoramas + default panorama in parallel
+        const [allPanoramas, defaultPanorama] = await Promise.all([
+          fetchPanoramas(project.id, userRef.current),
+          fetchDefaultPanorama(project.id, userRef.current),
+        ]);
+
+        // Guard: user might have logged out during the async gap
+        if (!userRef.current) return;
+
+        const panorama = defaultPanorama ?? null;
+        console.debug('[ProjectContext] Loaded panoramas:', allPanoramas.length, 'default:', panorama?.id ?? 'null');
+
+        setPanoramas(allPanoramas);
+        setCurrentPanorama(panorama);
+
+        // Load annotations for this project (null user = localStorage only)
+        const anns = await loadAnnotations(project.id, userRef.current);
+        if (userRef.current) {
+          setAnnotations(anns);
+          console.debug('[ProjectContext] Loaded annotations:', anns.length);
+        }
+      } catch (err) {
+        console.error('[ProjectContext] setCurrentProject failed:', err);
+      } finally {
+        setIsLoadingAnnotations(false);
+      }
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps — uses userRef
+  );
 
   // ── Bootstrap on user change ─────────────────────────────────────────────────
   const bootstrap = useCallback(async () => {
@@ -211,6 +229,10 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   );
 
   // ── Derived ──────────────────────────────────────────────────────────────────
+  /**
+   * Permission: user can edit this project IF they own it.
+   * Ownership is the ONLY gating factor — not "default project" status.
+   */
   const isOwner = currentProject?.user_id === user?.id;
   const imageUrl = currentPanorama?.image_url ?? SAMPLE_PANORAMA_URL;
 

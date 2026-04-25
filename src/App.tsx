@@ -40,6 +40,7 @@ function Editor() {
   // ── Local UI state ─────────────────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
   const [pendingPosition, setPendingPosition] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [modalScreenPos, setModalScreenPos] = useState<{ x: number; y: number } | null>(null);
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -84,15 +85,18 @@ function Editor() {
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
+      // Capture projectId NOW, not when the modal saves — avoids race with project switch
+      const projectId = currentProject?.id ?? null;
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
       const screenY = (-projected.y * 0.5 + 0.5) * height;
       setPendingPosition(position);
+      setPendingProjectId(projectId);
       setModalScreenPos({ x: screenX, y: screenY });
       setEditingAnnotation(null);
     },
-    []
+    [currentProject]
   );
 
   // ── Open edit modal for existing annotation ─────────────────────────────────
@@ -131,19 +135,18 @@ function Editor() {
       };
       // Optimistic update
       setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-      if (user && currentProject) {
-        await updateAnnotation(updated.id, updated.content, currentProject.id, user);
+      if (user && editingAnnotation.project_id) {
+        await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, user);
       }
-    } else if (pendingPosition) {
-      if (!currentProject) return;
+    } else if (pendingPosition && pendingProjectId) {
       const newAnnotation = {
         id: generateId(),
         type: 'text' as const,
-        project_id: currentProject.id,
+        project_id: pendingProjectId,
         position: pendingPosition,
         content: { text: trimmed },
       };
-      const saved = await saveAnnotation(newAnnotation, currentProject.id, user);
+      const saved = await saveAnnotation(newAnnotation, pendingProjectId, user);
       if (saved) {
         setAnnotations((prev) => [...prev, saved]);
       }
@@ -156,19 +159,20 @@ function Editor() {
 
   const handleCancel = () => {
     setPendingPosition(null);
+    setPendingProjectId(null);
     setEditingAnnotation(null);
     setModalScreenPos(null);
   };
 
   // ── Delete annotation ──────────────────────────────────────────────────────
   const handleAnnotationDelete = useCallback(
-    async (id: string) => {
-      setAnnotations((prev) => prev.filter((a) => a.id !== id));
-      if (user && currentProject) {
-        await removeAnnotation(id, currentProject.id, user);
+    async (annotation: Annotation) => {
+      setAnnotations((prev) => prev.filter((a) => a.id !== annotation.id));
+      if (user && annotation.project_id) {
+        await removeAnnotation(annotation.id, annotation.project_id, user);
       }
     },
-    [user, currentProject]
+    [user]
   );
 
   const handleGoogleSignIn = async () => {

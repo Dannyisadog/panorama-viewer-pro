@@ -21,7 +21,7 @@ interface AnnotationLayerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   editMode: boolean;
   onAnnotationEdit?: (annotation: AnnotationData) => void;
-  onAnnotationDelete?: (id: string) => void;
+  onAnnotationDelete?: (annotation: AnnotationData) => void;
   rafIdRef?: React.MutableRefObject<number>;
 }
 
@@ -129,7 +129,7 @@ export function AnnotationLayer({
                 title="Delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAnnotationDelete?.(ann.id);
+                  onAnnotationDelete?.(ann);
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
