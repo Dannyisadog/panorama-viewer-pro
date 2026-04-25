@@ -67,6 +67,23 @@ function Editor() {
   useEffect(() => { currentPanoramaRef.current = currentPanorama; }, [currentPanorama]);
   useEffect(() => { userRef.current = user; }, [user]);
 
+  // ── Auto-close sidebar when project loading completes ────────────────────────
+  // Detects true → false transition on isBootstrapping OR isLoadingProject.
+  // Runs after every render; ref tracks previous-frame loading state.
+  const wasLoadingRef = useRef(false);
+  useEffect(() => {
+    const isLoading = isBootstrapping || isLoadingProject;
+    if (isLoading) {
+      wasLoadingRef.current = true; // remember that a load started
+      return;
+    }
+    // isLoading just became false — close sidebar exactly once per load cycle
+    if (wasLoadingRef.current) {
+      wasLoadingRef.current = false;
+      setIsSidebarOpen(false);
+    }
+  }, [isBootstrapping, isLoadingProject]);
+
   // ── Edit mode (requires login + loaded project) ─────────────────────────────
   const handleToggleEditMode = () => {
     if (!userRef.current) {
