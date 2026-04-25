@@ -1,19 +1,19 @@
 /**
- * annotationsService — Supabase-backed annotation CRUD
+ * annotationsService — Project-scoped annotation CRUD
  *
  * Architecture:
  * - Authenticated → Supabase is source of truth, localStorage is write-through cache
  * - Unauthenticated → localStorage only (anonymous mode)
- * - RLS enforced server-side; user_id attached client-side via service
+ * - project_id is required on all DB operations (enforced by RLS)
  *
- * Security: user_id is ALWAYS enforced by RLS server-side. Client-side .eq() calls
- * are an extra guard — they do NOT substitute for RLS.
+ * Security: project_id ownership is ALWAYS enforced by RLS server-side.
+ * Client-side .eq() calls are extra guards — they do NOT substitute for RLS.
  */
 
 import { supabase } from '@/lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 
-// ── Types (canonical — must match App.tsx Annotation type) ──────────────────
+// ── Types (canonical — must match App.tsx Annotation type) ──────────────────────
 
 export type AnnotationType = 'text' | 'image' | 'video';
 export type TextContent = { text: string };
@@ -22,18 +22,18 @@ export type VideoContent = { videoUrl: string; caption?: string };
 
 export interface Annotation {
   id: string;
+  project_id: string;
   type: AnnotationType;
   position: { x: number; y: number; z: number };
   content: TextContent | ImageContent | VideoContent;
   createdAt: number;
   updatedAt: number;
-  // user_id is stored but omitted from the canonical Annotation type used in App.
-  // It is added at the service boundary before DB operations.
-  user_id?: string;
+  user_id?: string; // attached client-side before DB ops
 }
 
 export interface DbAnnotationRow {
   id: string;
+  project_id: string;
   user_id: string;
   type: AnnotationType;
   content: TextContent | ImageContent | VideoContent;
@@ -42,50 +42,57 @@ export interface DbAnnotationRow {
   updated_at: string;
 }
 
-// ── localStorage key ────────────────────────────────────────────────────────
+// ── localStorage helpers ───────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'panorama_annotations';
+/**
+ * Storage key is project-scoped so anonymous sessions don't collide
+ * across different projects.
+ */
+function storageKey(projectId: string): string {
+  return `panorama_annotations_${projectId}`;
+}
 
-// ── Storage helpers ─────────────────────────────────────────────────────────
-
-function loadFromStorage(): Annotation[] {
+function loadFromStorage(projectId: string): Annotation[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return JSON.parse(localStorage.getItem(storageKey(projectId)) ?? '[]');
   } catch {
     return [];
   }
 }
 
-function saveToStorage(annotations: Annotation[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations));
+function saveToStorage(projectId: string, annotations: Annotation[]): void {
+  localStorage.setItem(storageKey(projectId), JSON.stringify(annotations));
 }
 
-// ── DB ↔ App type conversion ────────────────────────────────────────────────
+// ── DB ↔ App type conversion ────────────────────────────────────────────────────
 
 function fromDbRow(row: DbAnnotationRow): Annotation {
   return {
     id: row.id,
-    user_id: row.user_id,
+    project_id: row.project_id,
     type: row.type,
     position: row.position,
     content: row.content,
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
+    user_id: row.user_id,
   };
 }
 
-// ── CRUD Operations ──────────────────────────────────────────────────────────
+// ── CRUD Operations ─────────────────────────────────────────────────────────────
 
 /**
- * Fetch annotations for a specific user from Supabase.
- * RLS: SELECT policy enforces auth.uid() = user_id server-side.
- * The .eq('user_id', user.id) here is a client-side refinement — RLS is the real guard.
+ * Fetch annotations for a specific project.
+ * RLS: SELECT policy enforces auth.uid() owns the project server-side.
  */
-export async function fetchAnnotations(user: User): Promise<Annotation[]> {
+export async function fetchAnnotations(
+  projectId: string,
+  _user: User
+): Promise<Annotation[]> {
   const { data, error } = await supabase
     .from('annotations')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('project_id', projectId)
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -98,15 +105,16 @@ export async function fetchAnnotations(user: User): Promise<Annotation[]> {
 
 /**
  * Insert a new annotation.
- * RLS: INSERT policy's WITH CHECK (auth.uid() = user_id) enforces ownership server-side.
- * The .eq('user_id', user.id) in the payload is redundant but documents intent.
+ * RLS: INSERT policy's WITH CHECK enforces project ownership server-side.
  */
 export async function createAnnotation(
   annotation: Omit<Annotation, 'createdAt' | 'updatedAt' | 'user_id'>,
+  projectId: string,
   user: User
 ): Promise<Annotation | null> {
   const payload = {
     id: annotation.id,
+    project_id: projectId,
     user_id: user.id,
     type: annotation.type,
     content: annotation.content,
@@ -129,74 +137,76 @@ export async function createAnnotation(
 
 /**
  * Update annotation content.
- * RLS: UPDATE policy USING clause (auth.uid() = user_id) enforces ownership server-side.
- * .eq('user_id', user.id) is an additional client guard — does NOT substitute for RLS.
+ * RLS: UPDATE policy USING clause enforces project ownership server-side.
  */
 export async function updateAnnotation(
   id: string,
   content: Annotation['content'],
-  user: User
+  projectId: string,
+  _user: User
 ): Promise<boolean> {
   const { error } = await supabase
     .from('annotations')
     .update({ content, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('project_id', projectId);
 
   if (error) {
     console.error('[Annotations] update error:', error.message);
     return false;
   }
-
   return true;
 }
 
 /**
  * Delete an annotation.
- * RLS: DELETE policy USING clause (auth.uid() = user_id) enforces ownership server-side.
- * .eq('user_id', user.id) is an additional client guard — does NOT substitute for RLS.
+ * RLS: DELETE policy USING clause enforces project ownership server-side.
  */
-export async function deleteAnnotation(id: string, user: User): Promise<boolean> {
+export async function deleteAnnotation(
+  id: string,
+  projectId: string,
+  _user: User
+): Promise<boolean> {
   const { error } = await supabase
     .from('annotations')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('project_id', projectId);
 
   if (error) {
     console.error('[Annotations] delete error:', error.message);
     return false;
   }
-
   return true;
 }
 
-// ── Hybrid load: Supabase (auth) + localStorage (anonymous fallback) ─────────
+// ── Hybrid load: Supabase (auth) + localStorage (anonymous) ────────────────────
 
 /**
  * Load annotations:
- * - Authenticated → fetch from Supabase (authoritative), hydrate localStorage cache
- * - Not authenticated → load from localStorage (anonymous mode)
+ * - Authenticated → fetch from Supabase, hydrate localStorage cache
+ * - Not authenticated → load from localStorage (project-scoped key)
  */
-export async function loadAnnotations(user: User | null): Promise<Annotation[]> {
+export async function loadAnnotations(
+  projectId: string,
+  user: User | null
+): Promise<Annotation[]> {
   if (!user) {
-    return loadFromStorage();
+    return loadFromStorage(projectId);
   }
 
-  const annotations = await fetchAnnotations(user);
-  saveToStorage(annotations); // keep cache in sync
+  const annotations = await fetchAnnotations(projectId, user);
+  saveToStorage(projectId, annotations);
   return annotations;
 }
 
 /**
  * Generate a valid v4 UUID.
- * Uses crypto.randomUUID() if available, otherwise falls back.
  */
 export function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  // Fallback for environments without crypto.randomUUID
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -205,54 +215,71 @@ export function generateId(): string {
 }
 
 /**
- * Save a new annotation:
- * - Optimistically writes to localStorage immediately
- * - Inserts to Supabase in background; rolls back localStorage on failure
+ * Save a new annotation (optimistic write):
+ * - Authenticated → Supabase + localStorage cache
+ * - Anonymous → localStorage only
  */
 export async function saveAnnotation(
   annotation: Omit<Annotation, 'createdAt' | 'updatedAt' | 'user_id'>,
-  user: User
+  projectId: string,
+  user: User | null
 ): Promise<Annotation | null> {
-  // Use a proper UUID so it works with the uuid PK on the DB
   const id = generateId();
 
-  // Optimistic write to localStorage
-  const cached = loadFromStorage();
   const optimistic: Annotation = {
     ...annotation,
     id,
-    user_id: user.id,
+    project_id: projectId,
+    user_id: user?.id ?? 'anonymous',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  saveToStorage([...cached, optimistic]);
 
-  // Persist to Supabase
-  const created = await createAnnotation({ ...annotation, id }, user);
-  if (!created) {
-    saveToStorage(cached); // rollback
-    return null;
+  if (user) {
+    // Authenticated: optimistic localStorage write + Supabase persist
+    const cached = loadFromStorage(projectId);
+    saveToStorage(projectId, [...cached, optimistic]);
+
+    const created = await createAnnotation({ ...annotation, id }, projectId, user);
+    if (!created) {
+      saveToStorage(projectId, cached); // rollback
+      return null;
+    }
+    // Replace optimistic entry with server-confirmed data
+    saveToStorage(
+      projectId,
+      cached.map((a) => (a.id === optimistic.id ? created : a))
+    );
+    return created;
+  } else {
+    // Anonymous: localStorage only
+    const cached = loadFromStorage(projectId);
+    saveToStorage(projectId, [...cached, optimistic]);
+    return optimistic;
   }
-
-  // Replace optimistic entry with server-confirmed data (has accurate timestamps)
-  saveToStorage(cached.map((a) => (a.id === optimistic.id ? created : a)));
-  return created;
 }
 
 /**
- * Remove an annotation:
- * - Optimistically removes from localStorage immediately
- * - Deletes from Supabase in background; rolls back localStorage on failure
+ * Remove an annotation (optimistic delete).
  */
-export async function removeAnnotation(id: string, user: User): Promise<boolean> {
-  const cached = loadFromStorage();
-  saveToStorage(cached.filter((a) => a.id !== id));
+export async function removeAnnotation(
+  id: string,
+  projectId: string,
+  user: User | null
+): Promise<boolean> {
+  if (user) {
+    const cached = loadFromStorage(projectId);
+    saveToStorage(projectId, cached.filter((a) => a.id !== id));
 
-  const deleted = await deleteAnnotation(id, user);
-  if (!deleted) {
-    saveToStorage(cached); // rollback
-    return false;
+    const deleted = await deleteAnnotation(id, projectId, user);
+    if (!deleted) {
+      saveToStorage(projectId, cached); // rollback
+      return false;
+    }
+    return true;
+  } else {
+    const cached = loadFromStorage(projectId);
+    saveToStorage(projectId, cached.filter((a) => a.id !== id));
+    return true;
   }
-
-  return true;
 }
