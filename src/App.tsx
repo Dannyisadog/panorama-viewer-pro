@@ -128,6 +128,7 @@ function Editor() {
 
   // ── Save annotation (create or edit) ───────────────────────────────────────
   const handleSave = async (text: string) => {
+    console.log('[App] handleSave called, text:', text, 'trimmed:', text.trim(), 'pendingPosition:', pendingPosition, 'pendingProjectId:', pendingProjectId, 'editingAnnotation:', editingAnnotation, 'user:', user?.id);
     const trimmed = text.trim();
     if (!trimmed) {
       setPendingPosition(null);
