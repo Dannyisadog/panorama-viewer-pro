@@ -251,7 +251,7 @@ function Editor() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <PanoramaViewer
         imageUrl={imageUrl}
-        isLoading={isLoadingProject}
+        isLoading={isLoadingProject || isBootstrapping}
         editMode={editMode}
         onAnnotationCreate={handleAnnotationCreate}
         cameraRef={cameraRef}

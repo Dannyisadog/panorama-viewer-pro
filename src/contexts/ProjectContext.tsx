@@ -56,7 +56,7 @@ interface ProjectContextValue {
   isCreatingProject: boolean;
 
   // Derived
-  imageUrl: string;
+  imageUrl: string | undefined;
 
   // Actions
   setCurrentProject: (project: Project) => Promise<void>;
@@ -264,7 +264,9 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
    * Ownership is the ONLY gating factor — not "default project" status.
    */
   const isOwner = currentProject?.user_id === user?.id;
-  const imageUrl = currentPanorama?.image_url ?? SAMPLE_PANORAMA_URL;
+  // When currentPanorama is null (loading/not yet loaded), pass undefined.
+  // PanoramaViewer will keep sphere hidden and show only the loading overlay.
+  const imageUrl = currentPanorama?.image_url ?? undefined;
 
   return (
     <ProjectContext.Provider value={{
