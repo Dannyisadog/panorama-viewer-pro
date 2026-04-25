@@ -57,10 +57,14 @@ function Editor() {
   const rafIdRef = useRef(0);
   const prevObjectUrlRef = useRef<string | null>(null);
 
-  // ── Edit mode (requires login) ─────────────────────────────────────────────
+  // ── Edit mode (requires login + loaded project) ─────────────────────────────
   const handleToggleEditMode = () => {
     if (!user) {
       setIsLoginModalOpen(true);
+      return;
+    }
+    if (!currentProject) {
+      console.warn('[App] handleToggleEditMode: currentProject not loaded yet');
       return;
     }
     setEditMode((prev) => !prev);
@@ -94,13 +98,13 @@ function Editor() {
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
-      // Guard: don't allow placing annotations if no project is loaded yet
-      if (!currentProject) {
-        console.warn('[App] handleAnnotationCreate: no currentProject, ignoring click');
+      // Guard: use currentProject, or fall back to projects[0] if still loading
+      const project = currentProject ?? projects[0] ?? null;
+      if (!project) {
+        console.warn('[App] handleAnnotationCreate: no project available, ignoring click');
         return;
       }
-      // Capture projectId NOW, not when the modal saves — avoids race with project switch
-      const projectId = currentProject.id;
+      const projectId = project.id;
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
@@ -110,7 +114,7 @@ function Editor() {
       setModalScreenPos({ x: screenX, y: screenY });
       setEditingAnnotation(null);
     },
-    [currentProject]
+    [currentProject, projects]
   );
 
   // ── Open edit modal for existing annotation ─────────────────────────────────
