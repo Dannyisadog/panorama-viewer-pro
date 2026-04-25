@@ -4,6 +4,8 @@ import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { FloatingBar } from '@/components/FloatingBar';
 import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLayer';
 import { AnnotationModal } from '@/components/AnnotationModal';
+import { LoginButton } from '@/components/LoginButton';
+import { LoginModal } from '@/components/LoginModal';
 
 const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 const STORAGE_KEY = 'panorama_annotations';
@@ -56,6 +58,9 @@ function App() {
   const [modalScreenPos, setModalScreenPos] = useState<{ x: number; y: number } | null>(null);
   // Editing state — annotation being edited (for the modal)
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
+
+  // Login modal state
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +163,13 @@ function App() {
     setAnnotations((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+  // ── Auth mock handlers (future-ready hooks) ───────────────────────
+  const handleGoogleSignIn = () => {
+    // TODO: integrate Supabase Auth or Google OAuth
+    console.log('[Auth] Google sign-in triggered (mock)');
+    setIsLoginModalOpen(false);
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <PanoramaViewer
@@ -185,6 +197,15 @@ function App() {
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
       />
+
+      <LoginButton onClick={() => setIsLoginModalOpen(true)} />
+
+      {isLoginModalOpen && (
+        <LoginModal
+          onClose={() => setIsLoginModalOpen(false)}
+          onGoogleSignIn={handleGoogleSignIn}
+        />
+      )}
 
       {modalScreenPos && (
         <AnnotationModal
