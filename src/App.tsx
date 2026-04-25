@@ -277,6 +277,7 @@ function Editor() {
       <PanoramaViewer
         imageUrl={imageUrl}
         isLoading={isLoadingProject || isBootstrapping}
+        isBootstrapping={isBootstrapping}
         editMode={editMode}
         onAnnotationCreate={handleAnnotationCreate}
         cameraRef={cameraRef}

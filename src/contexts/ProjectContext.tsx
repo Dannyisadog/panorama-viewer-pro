@@ -210,8 +210,6 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       bootstrappedRef.current = false; // allow bootstrap to run for next user
     }
   }, [user]);
-
-  // ── Actions ──────────────────────────────────────────────────────────────────
   const refreshAnnotations = useCallback(async () => {
     if (!currentProject || !userRef.current) return;
     setIsLoadingAnnotations(true);
@@ -266,9 +264,9 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
    * Ownership is the ONLY gating factor — not "default project" status.
    */
   const isOwner = currentProject?.user_id === user?.id;
-  // When currentPanorama is null (loading/not yet loaded), pass undefined.
-  // PanoramaViewer will keep sphere hidden and show only the loading overlay.
-  const imageUrl = currentPanorama?.image_url ?? undefined;
+  // When currentPanorama is null (loading/not yet loaded), show sample panorama.
+  // This ensures non-logged-in users see a default panorama, not a black screen.
+  const imageUrl = currentPanorama?.image_url ?? SAMPLE_PANORAMA_URL;
 
   return (
     <ProjectContext.Provider value={{
