@@ -825,7 +825,7 @@ body,
 .hamburger {
   position: fixed;
   top: 20px;
-  left: 72px;
+  left: 276px;
   z-index: 300;
 
   width: 40px;
@@ -843,7 +843,7 @@ body,
   gap: 5px;
   padding: 0;
 
-  transition: background 0.15s, left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.15s, left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: auto;
 }
 
