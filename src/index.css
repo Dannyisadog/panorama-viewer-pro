@@ -143,6 +143,15 @@ body,
   background: rgba(255, 255, 255, 0.08);
 }
 
+.upload-btn.locked {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.upload-btn.locked:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Annotation Layer ─────────────────────────────────────────────── */
 .annotation-layer {
   position: absolute;
@@ -609,25 +618,24 @@ body,
   position: fixed;
   left: 0;
   top: 0;
-  width: 64px;
+  width: 260px;
   height: 100vh;
   z-index: 200;
 
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 16px 0;
+  padding: 0;
 
   /* Glassmorphism */
-  background: rgba(10, 10, 18, 0.82);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(10, 10, 18, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 
   /* Collapsible — slide animation */
   pointer-events: none;
   transform: translateX(-100%);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .left-sidebar.left-sidebar--open {
@@ -635,31 +643,57 @@ body,
   pointer-events: auto;
 }
 
-.left-sidebar__section {
+/* ── Branding ──────────────────────────────────────────────────────────────── */
+.left-sidebar__branding {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  pointer-events: auto;
+  gap: 10px;
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.left-sidebar__logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(139, 92, 246, 0.20);
+  border: 1px solid rgba(139, 92, 246, 0.30);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a78bfa;
+  flex-shrink: 0;
+}
+
+.left-sidebar__brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.90);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* ── Divider ───────────────────────────────────────────────────────────────── */
 .left-sidebar__divider {
-  width: 32px;
   height: 1px;
-  background: rgba(255, 255, 255, 0.10);
-  margin: 12px 0;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
 }
 
+/* ── Spacer ────────────────────────────────────────────────────────────────── */
 .left-sidebar__spacer {
   flex: 1;
 }
 
+/* ── Auth Section ──────────────────────────────────────────────────────────── */
+.left-sidebar__auth {
+  padding: 12px 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* ── Sidebar Button (base) ──────────────────────────────────────────────────── */
 .sidebar-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.65);
@@ -669,34 +703,18 @@ body,
   justify-content: center;
   transition: background 0.15s, color 0.15s;
   position: relative;
+  font-family: inherit;
 }
 
 .sidebar-btn:hover {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.95);
-}
-
-.sidebar-btn.active {
-  background: rgba(139, 92, 246, 0.25);
-  color: #a78bfa;
-}
-
-.sidebar-btn.active:hover {
-  background: rgba(139, 92, 246, 0.35);
-}
-
-.sidebar-btn.locked {
-  color: rgba(255, 255, 255, 0.30);
-  cursor: not-allowed;
-}
-
-.sidebar-btn.locked:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.30);
 }
 
 .sidebar-btn--loading {
   cursor: default;
+  width: 44px;
+  height: 44px;
 }
 
 .sidebar-btn--loading:hover {
@@ -704,31 +722,103 @@ body,
   color: rgba(255, 255, 255, 0.65);
 }
 
+/* ── Login button ───────────────────────────────────────────────────────────── */
+.sidebar-btn--login {
+  width: 100%;
+  height: 44px;
+  gap: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.80);
+  justify-content: flex-start;
+}
+
+.sidebar-btn--login:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+/* ── Auth logged-in row ────────────────────────────────────────────────────── */
+.left-sidebar__auth-logged-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.sidebar-account:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-account__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.sidebar-account__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account__email {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.40);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Avatar ────────────────────────────────────────────────────────────────── */
 .sidebar-avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  flex-shrink: 0;
   pointer-events: none;
 }
 
 .sidebar-avatar--placeholder {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(139, 92, 246, 0.30);
+  background: rgba(139, 92, 246, 0.25);
   color: #a78bfa;
   font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.sidebar-btn--avatar {
-  padding: 0;
-  overflow: hidden;
+.sidebar-btn--logout {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.sidebar-btn--logout:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 /* ── Hamburger Button ─────────────────────────────────────────────────────── */

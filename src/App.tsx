@@ -8,23 +8,23 @@ import { LoginModal } from '@/components/LoginModal';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { HamburgerButton } from '@/components/HamburgerButton';
 import { useAuth } from '@/hooks/useAuth';
-import { useImageUpload } from '@/hooks/useImageUpload';
+import { useUpload } from '@/hooks/useUpload';
 import {
   loadAnnotations,
   saveAnnotation,
   updateAnnotation,
   removeAnnotation,
   type Annotation,
+  generateId,
 } from '@/lib/annotationsService';
 
 const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 
 function App() {
   const { user, isLoading: authLoading, signInWithGoogle, signOut } = useAuth();
-  const { upload: uploadImage, isUploading } = useImageUpload();
+  const { upload: uploadFile, isUploading } = useUpload();
 
   const [imageUrl, setImageUrl] = useState<string>(SAMPLE_PANORAMA);
-  const [selectedFileName, setSelectedFileName] = useState<string | undefined>();
   const [editMode, setEditMode] = useState(false);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [pendingPosition, setPendingPosition] = useState<{ x: number; y: number; z: number } | null>(null);
@@ -33,11 +33,6 @@ function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Tracks an uploaded image waiting to be placed as an annotation
-  const [pendingImage, setPendingImage] = useState<{
-    url: string;
-    position: { x: number; y: number; z: number };
-  } | null>(null);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,22 +41,11 @@ function App() {
   const prevObjectUrlRef = useRef<string | null>(null);
 
   // ── Hydrate annotations whenever auth state changes ─────────────────────────
-  // - Logged in  → fetch from Supabase (source of truth), cache to localStorage
-  // - Not logged → load from localStorage only
-  // Result is applied via setAnnotations after the async call resolves.
   useEffect(() => {
     loadAnnotations(user).then(setAnnotations).catch(() => setAnnotations([]));
   }, [user]);
 
-  const handleImageSelect = (url: string, fileName: string) => {
-    if (prevObjectUrlRef.current?.startsWith('blob:')) {
-      URL.revokeObjectURL(prevObjectUrlRef.current);
-    }
-    prevObjectUrlRef.current = url;
-    setImageUrl(url);
-    setSelectedFileName(fileName);
-  };
-
+  // ── Toggle edit mode (requires login) ──────────────────────────────────────
   const handleToggleEditMode = () => {
     if (!user) {
       setIsLoginModalOpen(true);
@@ -70,54 +54,28 @@ function App() {
     setEditMode((prev) => !prev);
   };
 
-  // ── Image annotation upload (edit mode) ──────────────────────────────────────
-  // Compresses + uploads image to Supabase Storage, then waits for click-to-place
-  const handleImageUpload = useCallback(
+  // ── Upload panorama to Supabase Storage ─────────────────────────────────────
+  const handleUpload = useCallback(
     async (file: File) => {
       if (!user) return;
-      const url = await uploadImage(file, user.id);
+      const url = await uploadFile(file, 'panoramas', user.id);
       if (url) {
-        setPendingImage({ url, position: { x: 0, y: 0, z: -1 } });
+        if (prevObjectUrlRef.current?.startsWith('blob:')) {
+          URL.revokeObjectURL(prevObjectUrlRef.current);
+        }
+        prevObjectUrlRef.current = url;
+        setImageUrl(url);
       }
     },
-    [user, uploadImage]
+    [user, uploadFile]
   );
 
-  // Opens modal for a new annotation at the clicked 3D position
+  // ── Create text annotation (click-to-place → modal) ────────────────────────
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
 
-      // If there's a pending uploaded image, place it immediately as an annotation
-      if (pendingImage) {
-        const newAnnotation: Omit<Annotation, 'createdAt' | 'updatedAt' | 'user_id'> = {
-          id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          type: 'image',
-          position,
-          content: { type: 'image' as const, url: pendingImage.url },
-        };
-
-        if (user) {
-          saveAnnotation(newAnnotation, user).then((saved) => {
-            if (saved) setAnnotations((prev) => [...prev, saved]);
-          });
-        } else {
-          const optimistic: Annotation = {
-            ...newAnnotation,
-            user_id: 'anonymous',
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-          setAnnotations((prev) => [...prev, optimistic]);
-          const existing = JSON.parse(localStorage.getItem('panorama_annotations') ?? '[]');
-          localStorage.setItem('panorama_annotations', JSON.stringify([...existing, optimistic]));
-        }
-
-        setPendingImage(null);
-        return;
-      }
-
-      // Default: open text annotation modal
+      // Always open text annotation modal (text annotations use click-to-place flow)
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
@@ -126,10 +84,10 @@ function App() {
       setModalScreenPos({ x: screenX, y: screenY });
       setEditingAnnotation(null); // fresh create
     },
-    [pendingImage, user]
+    []
   );
 
-  // Opens modal pre-filled with existing annotation text (for edit)
+  // ── Open edit modal for existing annotation ─────────────────────────────────
   const handleAnnotationEdit = useCallback(
     (annotation: AnnotationData) => {
       if (!cameraRef.current || !containerRef.current) return;
@@ -148,9 +106,7 @@ function App() {
     []
   );
 
-  // Saves — handles both create and edit (text only for now)
-  // Authenticated → persist to Supabase (+ localStorage cache)
-  // Unauthenticated → localStorage only
+  // ── Save annotation (create or edit) ───────────────────────────────────────
   const handleSave = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -161,17 +117,12 @@ function App() {
     }
 
     if (editingAnnotation) {
-      // Edit existing — update locally, then sync
       const updated = { ...editingAnnotation, content: { ...editingAnnotation.content, text: trimmed } };
       setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-
-      if (user) {
-        updateAnnotation(updated.id, updated.content, user);
-      }
+      if (user) updateAnnotation(updated.id, updated.content, user);
     } else if (pendingPosition) {
-      // Create new
       const newAnnotation = {
-        id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: generateId(),
         type: 'text' as const,
         position: pendingPosition,
         content: { text: trimmed },
@@ -179,11 +130,8 @@ function App() {
 
       if (user) {
         const saved = await saveAnnotation(newAnnotation, user);
-        if (saved) {
-          setAnnotations((prev) => [...prev, saved]);
-        }
+        if (saved) setAnnotations((prev) => [...prev, saved]);
       } else {
-        // Unauthenticated — write to localStorage only
         const optimistic: Annotation = {
           ...newAnnotation,
           user_id: 'anonymous',
@@ -209,9 +157,7 @@ function App() {
 
   const handleAnnotationDelete = useCallback(
     async (id: string) => {
-      // Optimistic local remove
       setAnnotations((prev) => prev.filter((a) => a.id !== id));
-
       if (user) {
         await removeAnnotation(id, user);
       } else {
@@ -251,12 +197,11 @@ function App() {
       />
 
       <FloatingBar
-        onImageSelect={handleImageSelect}
-        selectedFileName={selectedFileName}
+        onUpload={handleUpload}
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
         user={user}
-        onImageUpload={handleImageUpload}
+        onLoginClick={() => setIsLoginModalOpen(true)}
         isUploading={isUploading}
       />
 
@@ -268,9 +213,7 @@ function App() {
       <LeftSidebar
         user={user}
         isLoading={authLoading}
-        editMode={editMode}
         isOpen={isSidebarOpen}
-        onToggleEditMode={handleToggleEditMode}
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={signOut}
       />

@@ -46,6 +46,7 @@ export function useImageUpload(): UseImageUploadReturn {
     setIsUploading(true);
     setError(null);
     setProgress({ stage: 'compressing', message: 'Optimizing image...' });
+    console.log('[useImageUpload] Starting upload for file:', file.name, file.size, file.type);
 
     try {
       // ── Step 1: Compress ───────────────────────────────────────────────
@@ -70,6 +71,7 @@ export function useImageUpload(): UseImageUploadReturn {
         });
 
       if (storageError) {
+        console.error('[useImageUpload] Storage error:', storageError);
         throw new Error(`Storage upload failed: ${storageError.message}`);
       }
 

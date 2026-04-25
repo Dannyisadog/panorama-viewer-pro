@@ -3,9 +3,7 @@ import type { User } from '@supabase/supabase-js';
 interface LeftSidebarProps {
   user: User | null;
   isLoading?: boolean;
-  editMode: boolean;
   isOpen: boolean;
-  onToggleEditMode: () => void;
   onLoginClick: () => void;
   onLogout: () => void;
 }
@@ -28,47 +26,74 @@ function getInitials(user: User): string {
   return name.charAt(0).toUpperCase();
 }
 
-export function LeftSidebar({
-  user,
-  isLoading,
-  editMode,
-  isOpen,
-  onToggleEditMode,
-  onLoginClick,
-  onLogout,
-}: LeftSidebarProps) {
-  const handleEditClick = () => {
-    if (!user) {
-      onLoginClick();
-      return;
-    }
-    onToggleEditMode();
-  };
+// ── SVG Icons ─────────────────────────────────────────────────────────────────
+function LoginIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+      <polyline points="10 17 15 12 10 7"/>
+      <line x1="15" y1="12" x2="3" y2="12"/>
+    </svg>
+  );
+}
 
-  const handleLoginClick = () => {
-    onLoginClick();
-  };
+function LogoutIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
 
+function PanoramaIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+      <path d="M2 12h20"/>
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
+      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+      </path>
+    </svg>
+  );
+}
+
+export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout }: LeftSidebarProps) {
   return (
     <aside className={`left-sidebar${isOpen ? ' left-sidebar--open' : ''}`}>
-      {/* ── Login / Account ─────────────────────────── */}
-      <div className="left-sidebar__section">
+      {/* ── Branding ──────────────────────────────────────────────── */}
+      <div className="left-sidebar__branding">
+        <div className="left-sidebar__logo">
+          <PanoramaIcon />
+        </div>
+        <span className="left-sidebar__brand-name">Panorama</span>
+      </div>
+
+      {/* ── Divider ───────────────────────────────────────────────── */}
+      <div className="left-sidebar__divider" />
+
+      {/* ── Spacer ────────────────────────────────────────────────── */}
+      <div className="left-sidebar__spacer" />
+
+      {/* ── Auth Section ──────────────────────────────────────────── */}
+      <div className="left-sidebar__auth">
         {isLoading ? (
           <button className="sidebar-btn sidebar-btn--loading" disabled title="Loading...">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
-              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
-                <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
-              </path>
-            </svg>
+            <SpinnerIcon />
           </button>
         ) : user ? (
-          <div className="sidebar-account">
-            <button
-              className="sidebar-btn sidebar-btn--avatar"
-              title={`${getDisplayName(user)} — click to sign out`}
-              onClick={onLogout}
-            >
+          <div className="left-sidebar__auth-logged-in">
+            <div className="sidebar-account">
               {getAvatarUrl(user) ? (
                 <img
                   src={getAvatarUrl(user)!}
@@ -81,62 +106,30 @@ export function LeftSidebar({
                   {getInitials(user)}
                 </div>
               )}
+              <div className="sidebar-account__info">
+                <span className="sidebar-account__name">{getDisplayName(user)}</span>
+                <span className="sidebar-account__email">{user.email}</span>
+              </div>
+            </div>
+            <button
+              className="sidebar-btn sidebar-btn--logout"
+              onClick={onLogout}
+              title="Sign out"
+            >
+              <LogoutIcon />
             </button>
           </div>
         ) : (
           <button
-            className="sidebar-btn"
-            onClick={handleLoginClick}
+            className="sidebar-btn sidebar-btn--login"
+            onClick={onLoginClick}
             title="Sign in"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+            <LoginIcon />
+            <span>Login</span>
           </button>
         )}
       </div>
-
-      {/* ── Divider ────────────────────────────────── */}
-      <div className="left-sidebar__divider" />
-
-      {/* ── Edit Mode Toggle ───────────────────────── */}
-      <div className="left-sidebar__section">
-        <button
-          className={`sidebar-btn ${editMode ? 'active' : ''} ${!user ? 'locked' : ''}`}
-          onClick={handleEditClick}
-          title={
-            !user
-              ? 'Login to edit'
-              : editMode
-                ? 'Exit Edit Mode'
-                : 'Enter Edit Mode'
-          }
-        >
-          {editMode ? (
-            // Active edit mode — X icon to exit
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          ) : !user ? (
-            // Locked — not logged in
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          ) : (
-            // Edit icon — logged in
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          )}
-        </button>
-      </div>
-
-      {/* ── Spacer (for future tools) ──────────────── */}
-      <div className="left-sidebar__spacer" />
     </aside>
   );
 }
