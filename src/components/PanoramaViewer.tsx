@@ -6,6 +6,7 @@ import { clamp, lerp } from '@/utils/math';
 
 export interface PanoramaViewerProps {
   imageUrl?: string;
+  isLoading?: boolean;
   initialFov?: number;
   minFov?: number;
   maxFov?: number;
@@ -21,6 +22,7 @@ const SPHERE_RADIUS = 500;
 
 export function PanoramaViewer({
   imageUrl,
+  isLoading = false,
   initialFov = 75,
   minFov = 30,
   maxFov = 100,
@@ -325,6 +327,13 @@ export function PanoramaViewer({
         overflow: 'hidden',
         cursor: editMode ? 'crosshair' : 'grab',
       }}
-    />
+    >
+      {isLoading && (
+        <div className="viewer-loading-overlay">
+          <div className="viewer-loading-overlay__spinner" />
+          <span className="viewer-loading-overlay__text">Loading project…</span>
+        </div>
+      )}
+    </div>
   );
 }

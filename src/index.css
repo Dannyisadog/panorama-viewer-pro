@@ -14,7 +14,41 @@ body,
   font-family: "Noto Sans", sans-serif;
 }
 
-/* ── Floating Bottom Control Bar ────────────────────────────────────── */
+/* ── Project Switch Loading Overlay ─────────────────────────────── */
+.viewer-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: #0a0a0f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.viewer-loading-overlay__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: viewer-spin 0.8s linear infinite;
+}
+
+.viewer-loading-overlay__text {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+@keyframes viewer-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Floating Bottom Control Bar ──────────────────────────────── */
 .floating-bar {
   position: fixed;
   bottom: 24px;

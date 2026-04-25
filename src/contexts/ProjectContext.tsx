@@ -51,6 +51,7 @@ interface ProjectContextValue {
 
   // Loading states
   isBootstrapping: boolean;
+  isLoadingProject: boolean; // fetching panoramas + annotations for a project switch
   isLoadingAnnotations: boolean;
   isCreatingProject: boolean;
 
@@ -79,6 +80,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const [panoramas, setPanoramas] = useState<Panorama[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
@@ -95,6 +97,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setCurrentPanorama(null);
       setPanoramas([]);
       setAnnotations([]);
+      setIsLoadingProject(true);
       setIsLoadingAnnotations(true);
 
       console.debug('[ProjectContext] Switching to project:', project.id, project.name);
@@ -121,9 +124,11 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
           setAnnotations(anns);
           console.debug('[ProjectContext] Loaded annotations:', anns.length);
         }
+        setIsLoadingProject(false);
+        setIsLoadingAnnotations(false);
       } catch (err) {
         console.error('[ProjectContext] setCurrentProject failed:', err);
-      } finally {
+        setIsLoadingProject(false);
         setIsLoadingAnnotations(false);
       }
     },
@@ -247,6 +252,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setAnnotations,
       isOwner,
       isBootstrapping,
+      isLoadingProject,
       isLoadingAnnotations,
       isCreatingProject,
       imageUrl,

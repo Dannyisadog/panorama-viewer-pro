@@ -33,6 +33,7 @@ function Editor() {
     setAnnotations,
     imageUrl,
     isBootstrapping,
+    isLoadingProject,
     isOwner,
     isCreatingProject,
     createProjectWithPanorama,
@@ -195,6 +196,7 @@ function Editor() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <PanoramaViewer
         imageUrl={imageUrl}
+        isLoading={isLoadingProject}
         editMode={editMode}
         onAnnotationCreate={handleAnnotationCreate}
         cameraRef={cameraRef}
