@@ -39,12 +39,18 @@ export function useAuth() {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    // Hardcode Vercel URL for production; localhost fallback for dev
+    const isLocalhost =
+      typeof window !== 'undefined' &&
+      window.location.hostname === 'localhost';
+
+    const redirectTo = isLocalhost
+      ? 'http://localhost:5173'
+      : 'https://panorama-viewer-pro.vercel.app';
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        // Redirect back to the current page after OAuth completes
-        redirectTo: window.location.origin,
-      },
+      options: { redirectTo },
     });
     if (error) {
       console.error('[Auth] signInWithGoogle error:', error.message);
