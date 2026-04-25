@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 
 interface LoginModalProps {
   onClose: () => void;
-  onGoogleSignIn: () => void;
+  onGoogleSignIn: () => Promise<void>;
+  isSigningIn?: boolean;
 }
 
 // Google SVG icon (official brand)
@@ -17,7 +18,7 @@ function GoogleIcon() {
   );
 }
 
-export function LoginModal({ onClose, onGoogleSignIn }: LoginModalProps) {
+export function LoginModal({ onClose, onGoogleSignIn, isSigningIn }: LoginModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
@@ -65,13 +66,23 @@ export function LoginModal({ onClose, onGoogleSignIn }: LoginModalProps) {
             Sign in to save and sync your panorama annotations
           </p>
 
-          {/* Google Sign In Button — UI only, no real auth yet */}
+          {/* Google Sign In Button */}
           <button
             className="google-signin-btn"
             onClick={onGoogleSignIn}
+            disabled={isSigningIn}
           >
-            <GoogleIcon />
-            <span>Sign in with Google</span>
+            {isSigningIn ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3c4043" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" strokeOpacity="0.3"/>
+                <path d="M12 3a9 9 0 0 1 9 9" strokeLinecap="round">
+                  <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+                </path>
+              </svg>
+            ) : (
+              <GoogleIcon />
+            )}
+            <span>{isSigningIn ? 'Redirecting...' : 'Sign in with Google'}</span>
           </button>
         </div>
       </div>

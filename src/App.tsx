@@ -6,6 +6,7 @@ import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLay
 import { AnnotationModal } from '@/components/AnnotationModal';
 import { LoginButton } from '@/components/LoginButton';
 import { LoginModal } from '@/components/LoginModal';
+import { useAuth } from '@/hooks/useAuth';
 
 const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 const STORAGE_KEY = 'panorama_annotations';
@@ -50,6 +51,8 @@ function loadFromStorage(): Annotation[] {
 }
 
 function App() {
+  const { user, isLoading: authLoading, signInWithGoogle, signOut } = useAuth();
+
   const [imageUrl, setImageUrl] = useState<string>(SAMPLE_PANORAMA);
   const [selectedFileName, setSelectedFileName] = useState<string | undefined>();
   const [editMode, setEditMode] = useState(false);
@@ -61,6 +64,7 @@ function App() {
 
   // Login modal state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -163,11 +167,12 @@ function App() {
     setAnnotations((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  // ── Auth mock handlers (future-ready hooks) ───────────────────────
-  const handleGoogleSignIn = () => {
-    // TODO: integrate Supabase Auth or Google OAuth
-    console.log('[Auth] Google sign-in triggered (mock)');
+  const handleGoogleSignIn = async () => {
     setIsLoginModalOpen(false);
+    setIsSigningIn(true);
+    await signInWithGoogle();
+    // If user cancels OAuth (error), reset loading state
+    setIsSigningIn(false);
   };
 
   return (
@@ -198,12 +203,18 @@ function App() {
         onToggleEditMode={handleToggleEditMode}
       />
 
-      <LoginButton onClick={() => setIsLoginModalOpen(true)} />
+      <LoginButton
+        user={user}
+        isLoading={authLoading}
+        onLoginClick={() => setIsLoginModalOpen(true)}
+        onLogout={signOut}
+      />
 
       {isLoginModalOpen && (
         <LoginModal
           onClose={() => setIsLoginModalOpen(false)}
           onGoogleSignIn={handleGoogleSignIn}
+          isSigningIn={isSigningIn}
         />
       )}
 
