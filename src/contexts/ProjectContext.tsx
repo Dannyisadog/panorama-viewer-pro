@@ -6,6 +6,7 @@
  * - Load annotations whenever currentProjectId changes
  * - Provide currentProject, currentPanorama, annotations to the subtree
  * - Handle login/logout transitions (clear state on logout, bootstrap on login)
+ * - Project creation with immediate panorama upload
  *
  * Does NOT touch Three.js or rendering logic.
  */
@@ -19,22 +20,46 @@ import React, {
   useRef,
 } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { bootstrapDefaultProject, fetchProjects, type Project } from '@/api/projects';
-import { createDefaultPanorama, fetchDefaultPanorama, type Panorama } from '@/api/panoramas';
+import {
+  bootstrapDefaultProject,
+  fetchProjects,
+  createProject,
+  type Project,
+} from '@/api/projects';
+import {
+  createPanorama,
+  fetchDefaultPanorama,
+  fetchPanoramas,
+  type Panorama,
+} from '@/api/panoramas';
 import { loadAnnotations, type Annotation } from '@/lib/annotationsService';
 
 export const SAMPLE_PANORAMA_URL = 'https://pannellum.org/images/alma.jpg';
 
 // ── Shape ─────────────────────────────────────────────────────────────────────
 interface ProjectContextValue {
+  // Entities
   projects: Project[];
   currentProject: Project | null;
   currentPanorama: Panorama | null;
+  panoramas: Panorama[]; // all panoramas for current project
   annotations: Annotation[];
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
+
+  // Permission
+  isOwner: boolean; // current user owns currentProject
+
+  // Loading states
   isBootstrapping: boolean;
   isLoadingAnnotations: boolean;
+  isCreatingProject: boolean;
+
+  // Derived
   imageUrl: string;
+
+  // Actions
+  setCurrentProject: (project: Project) => Promise<void>;
+  createProjectWithPanorama: (name: string, imageUrl: string) => Promise<Project | null>;
   refreshAnnotations: () => Promise<void>;
 }
 
@@ -48,14 +73,43 @@ interface ProjectProviderProps {
 
 export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [currentProject, setCurrentProjectState] = useState<Project | null>(null);
   const [currentPanorama, setCurrentPanorama] = useState<Panorama | null>(null);
+  const [panoramas, setPanoramas] = useState<Panorama[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
-  const userRef = useRef(user);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
+  const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  // ── Switch to a different project ─────────────────────────────────────────────
+  const setCurrentProject = useCallback(async (project: Project) => {
+    if (!userRef.current) return;
+
+    setCurrentProjectState(project);
+    setIsLoadingAnnotations(true);
+    setAnnotations([]);
+
+    try {
+      // Load all panoramas for this project
+      const [allPanoramas, defaultPanorama] = await Promise.all([
+        fetchPanoramas(project.id, userRef.current),
+        fetchDefaultPanorama(project.id, userRef.current),
+      ]);
+
+      if (!userRef.current) return;
+      setPanoramas(allPanoramas);
+      setCurrentPanorama(defaultPanorama ?? null);
+
+      // Load annotations for the default panorama's project
+      const anns = await loadAnnotations(project.id, userRef.current);
+      if (userRef.current) setAnnotations(anns);
+    } finally {
+      setIsLoadingAnnotations(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bootstrap on user change ─────────────────────────────────────────────────
   const bootstrap = useCallback(async () => {
@@ -68,15 +122,27 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       const allProjects = await fetchProjects(user);
       if (!userRef.current) return;
 
-      let panorama = await fetchDefaultPanorama(project.id, user);
-      if (!panorama) {
-        panorama = await createDefaultPanorama(project.id, user);
-      }
+      const [allPanoramas, panorama] = await Promise.all([
+        fetchPanoramas(project.id, userRef.current),
+        fetchDefaultPanorama(project.id, userRef.current),
+      ]);
+
+      if (!userRef.current) return;
+
+      const finalPanorama = panorama ?? (await createPanorama(
+        { project_id: project.id, image_url: SAMPLE_PANORAMA_URL, is_default: true },
+        userRef.current
+      ));
+
       if (!userRef.current) return;
 
       setProjects(allProjects);
-      setCurrentProject(project);
-      setCurrentPanorama(panorama ?? null);
+      setCurrentProjectState(project);
+      setPanoramas(allPanoramas);
+      setCurrentPanorama(finalPanorama ?? null);
+
+      const anns = await loadAnnotations(project.id, userRef.current);
+      if (userRef.current) setAnnotations(anns);
     } finally {
       setIsBootstrapping(false);
     }
@@ -88,32 +154,64 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   useEffect(() => {
     if (!user) {
       setProjects([]);
-      setCurrentProject(null);
+      setCurrentProjectState(null);
       setCurrentPanorama(null);
+      setPanoramas([]);
       setAnnotations([]);
     }
   }, [user]);
 
-  // ── Load annotations when project changes ───────────────────────────────────
-  useEffect(() => {
-    if (!currentProject) { setAnnotations([]); return; }
-    setIsLoadingAnnotations(true);
-    loadAnnotations(currentProject.id, user)
-      .then(setAnnotations)
-      .catch(() => setAnnotations([]))
-      .finally(() => setIsLoadingAnnotations(false));
-  }, [currentProject?.id, user]);
-
+  // ── Actions ──────────────────────────────────────────────────────────────────
   const refreshAnnotations = useCallback(async () => {
-    if (!currentProject) return;
+    if (!currentProject || !userRef.current) return;
     setIsLoadingAnnotations(true);
     try {
-      setAnnotations(await loadAnnotations(currentProject.id, user));
+      setAnnotations(await loadAnnotations(currentProject.id, userRef.current));
     } finally {
       setIsLoadingAnnotations(false);
     }
-  }, [currentProject, user]);
+  }, [currentProject]);
 
+  /**
+   * Create a new project + immediately set its first panorama.
+   * Called by ProjectModal after user submits name + uploads image.
+   */
+  const createProjectWithPanorama = useCallback(
+    async (name: string, imageUrl: string): Promise<Project | null> => {
+      if (!userRef.current) return null;
+      setIsCreatingProject(true);
+      try {
+        const project = await createProject(name, userRef.current);
+        if (!project) return null;
+
+        const panorama = await createPanorama(
+          { project_id: project.id, image_url: imageUrl, is_default: true },
+          userRef.current
+        );
+        if (!userRef.current) return null;
+
+        // Refresh project list and switch to new project
+        const allProjects = await fetchProjects(userRef.current);
+        setProjects(allProjects);
+
+        await setCurrentProject(project);
+
+        // Update the new project's panorama list
+        if (panorama) {
+          setPanoramas([panorama]);
+          setCurrentPanorama(panorama);
+        }
+
+        return project;
+      } finally {
+        setIsCreatingProject(false);
+      }
+    },
+    [setCurrentProject] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
+  const isOwner = currentProject?.user_id === user?.id;
   const imageUrl = currentPanorama?.image_url ?? SAMPLE_PANORAMA_URL;
 
   return (
@@ -121,11 +219,16 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       projects,
       currentProject,
       currentPanorama,
+      panoramas,
       annotations,
       setAnnotations,
+      isOwner,
       isBootstrapping,
       isLoadingAnnotations,
+      isCreatingProject,
       imageUrl,
+      setCurrentProject,
+      createProjectWithPanorama,
       refreshAnnotations,
     }}>
       {children}

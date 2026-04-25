@@ -5,6 +5,7 @@ interface FloatingBarProps {
   editMode: boolean;
   onToggleEditMode: () => void;
   user?: import('@supabase/supabase-js').User | null;
+  isOwner: boolean;
   onLoginClick: () => void;
   isUploading?: boolean;
 }
@@ -14,6 +15,7 @@ export function FloatingBar({
   editMode,
   onToggleEditMode,
   user,
+  isOwner,
   onLoginClick,
   isUploading = false,
 }: FloatingBarProps) {
@@ -24,6 +26,7 @@ export function FloatingBar({
       onLoginClick();
       return;
     }
+    if (!isOwner) return;
     inputRef.current?.click();
   };
 
@@ -39,9 +42,17 @@ export function FloatingBar({
       <div className="floating-bar__group">
         {/* Edit Mode Toggle */}
         <button
-          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''} ${!user ? 'locked' : ''}`}
+          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''} ${!user || !isOwner ? 'locked' : ''}`}
           onClick={onToggleEditMode}
-          title={!user ? 'Login to edit' : editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+          title={
+            !user
+              ? 'Login to edit'
+              : !isOwner
+                ? 'You do not own this project'
+                : editMode
+                  ? 'Exit Edit Mode'
+                  : 'Enter Edit Mode'
+          }
         >
           {editMode ? (
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,9 +81,9 @@ export function FloatingBar({
           style={{ display: 'none' }}
         />
         <button
-          className={`upload-btn bar-btn ${isUploading ? 'bar-btn--loading' : ''} ${!user ? 'locked' : ''}`}
+          className={`upload-btn bar-btn ${isUploading ? 'bar-btn--loading' : ''} ${!user || !isOwner ? 'locked' : ''}`}
           onClick={handleUploadClick}
-          disabled={isUploading || !user}
+          disabled={isUploading || !user || !isOwner}
           title={!user ? 'Login to upload' : isUploading ? 'Uploading...' : 'Upload Panorama'}
         >
           {isUploading ? (

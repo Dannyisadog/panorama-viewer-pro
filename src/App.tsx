@@ -7,6 +7,7 @@ import { AnnotationModal } from '@/components/AnnotationModal';
 import { LoginModal } from '@/components/LoginModal';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { HamburgerButton } from '@/components/HamburgerButton';
+import { ProjectModal } from '@/components/ProjectModal';
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpload } from '@/hooks/useUpload';
@@ -31,7 +32,9 @@ function Editor() {
     setAnnotations,
     imageUrl,
     isBootstrapping,
-    refreshAnnotations,
+    isOwner,
+    isCreatingProject,
+    createProjectWithPanorama,
   } = useProject();
 
   // ── Local UI state ─────────────────────────────────────────────────────────
@@ -42,6 +45,7 @@ function Editor() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,7 +178,7 @@ function Editor() {
     setIsSigningIn(false);
   };
 
-  void refreshAnnotations;
+  void isCreatingProject;
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -202,6 +206,7 @@ function Editor() {
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
         user={user}
+        isOwner={isOwner}
         onLoginClick={() => setIsLoginModalOpen(true)}
         isUploading={isUploading}
       />
@@ -217,6 +222,7 @@ function Editor() {
         isOpen={isSidebarOpen}
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={signOut}
+        onNewProjectClick={() => setIsProjectModalOpen(true)}
       />
 
       {isLoginModalOpen && (
@@ -224,6 +230,14 @@ function Editor() {
           onClose={() => setIsLoginModalOpen(false)}
           onGoogleSignIn={handleGoogleSignIn}
           isSigningIn={isSigningIn}
+        />
+      )}
+
+      {isProjectModalOpen && (
+        <ProjectModal
+          onClose={() => setIsProjectModalOpen(false)}
+          onSubmit={createProjectWithPanorama}
+          userId={user?.id ?? ''}
         />
       )}
 
