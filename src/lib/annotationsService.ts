@@ -189,6 +189,22 @@ export async function loadAnnotations(user: User | null): Promise<Annotation[]> 
 }
 
 /**
+ * Generate a valid v4 UUID.
+ * Uses crypto.randomUUID() if available, otherwise falls back.
+ */
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
  * Save a new annotation:
  * - Optimistically writes to localStorage immediately
  * - Inserts to Supabase in background; rolls back localStorage on failure
@@ -197,10 +213,14 @@ export async function saveAnnotation(
   annotation: Omit<Annotation, 'createdAt' | 'updatedAt' | 'user_id'>,
   user: User
 ): Promise<Annotation | null> {
+  // Use a proper UUID so it works with the uuid PK on the DB
+  const id = generateId();
+
   // Optimistic write to localStorage
   const cached = loadFromStorage();
   const optimistic: Annotation = {
     ...annotation,
+    id,
     user_id: user.id,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -208,7 +228,7 @@ export async function saveAnnotation(
   saveToStorage([...cached, optimistic]);
 
   // Persist to Supabase
-  const created = await createAnnotation(annotation, user);
+  const created = await createAnnotation({ ...annotation, id }, user);
   if (!created) {
     saveToStorage(cached); // rollback
     return null;
