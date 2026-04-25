@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
 import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { FloatingBar } from '@/components/FloatingBar';
@@ -57,13 +57,23 @@ function Editor() {
   const rafIdRef = useRef(0);
   const prevObjectUrlRef = useRef<string | null>(null);
 
+  // ── Stable refs — always read latest state inside async callbacks ────────────
+  const currentProjectRef = useRef(currentProject);
+  const projectsRef = useRef(projects);
+  const currentPanoramaRef = useRef(currentPanorama);
+  const userRef = useRef(user);
+  useEffect(() => { currentProjectRef.current = currentProject; }, [currentProject]);
+  useEffect(() => { projectsRef.current = projects; }, [projects]);
+  useEffect(() => { currentPanoramaRef.current = currentPanorama; }, [currentPanorama]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   // ── Edit mode (requires login + loaded project) ─────────────────────────────
   const handleToggleEditMode = () => {
-    if (!user) {
+    if (!userRef.current) {
       setIsLoginModalOpen(true);
       return;
     }
-    if (!currentProject) {
+    if (!currentProjectRef.current) {
       console.warn('[App] handleToggleEditMode: currentProject not loaded yet');
       return;
     }
@@ -73,9 +83,9 @@ function Editor() {
   // ── Upload panorama → update DB + viewer immediately ─────────────────────────
   const handleUpload = useCallback(
     async (file: File) => {
-      if (!user || !currentPanorama) return;
+      if (!userRef.current || !currentPanoramaRef.current) return;
 
-      const url = await uploadFile(file, 'panoramas', user.id);
+      const url = await uploadFile(file, 'panoramas', userRef.current.id);
       if (!url) return;
 
       // Revoke stale blob URL
@@ -85,36 +95,34 @@ function Editor() {
       prevObjectUrlRef.current = url;
 
       // ── Step 1: Optimistic local state update (viewer reacts immediately) ──
-      const updatedPanorama = { ...currentPanorama, image_url: url };
+      const updatedPanorama = { ...currentPanoramaRef.current, image_url: url };
       setCurrentPanorama(updatedPanorama);
 
       // ── Step 2: Persist to DB ───────────────────────────────────────────────
-      await updatePanoramaImage(currentPanorama.id, url, user);
+      await updatePanoramaImage(currentPanoramaRef.current.id, url, userRef.current);
     },
-    [user, currentPanorama, uploadFile, setCurrentPanorama]
+    [uploadFile, setCurrentPanorama]
   );
 
   // ── Create text annotation (click-to-place → modal) ────────────────────────
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
-      // Guard: use currentProject, or fall back to projects[0] if still loading
-      const project = currentProject ?? projects[0] ?? null;
-      if (!project) {
-        console.warn('[App] handleAnnotationCreate: no project available, ignoring click');
+      if (!currentProjectRef.current) {
+        console.warn('[App] handleAnnotationCreate: currentProjectRef not ready');
         return;
       }
-      const projectId = project.id;
+      const project = currentProjectRef.current;
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
       const screenY = (-projected.y * 0.5 + 0.5) * height;
       setPendingPosition(position);
-      setPendingProjectId(projectId);
+      setPendingProjectId(project.id);
       setModalScreenPos({ x: screenX, y: screenY });
       setEditingAnnotation(null);
     },
-    [currentProject, projects]
+    [] // stable — all inputs via refs
   );
 
   // ── Open edit modal for existing annotation ─────────────────────────────────
@@ -138,7 +146,9 @@ function Editor() {
 
   // ── Save annotation (create or edit) ───────────────────────────────────────
   const handleSave = async (text: string) => {
-    console.log('[App] handleSave called, text:', text, 'trimmed:', text.trim(), 'pendingPosition:', pendingPosition, 'pendingProjectId:', pendingProjectId, 'editingAnnotation:', editingAnnotation, 'user:', user?.id);
+    const currentUser = userRef.current;
+    const currentProjectVal = currentProjectRef.current;
+    console.log('[App] handleSave called, text:', text, 'trimmed:', text.trim(), 'pendingPosition:', pendingPosition, 'pendingProjectId:', pendingProjectId, 'editingAnnotation:', editingAnnotation, 'user:', currentUser?.id);
     const trimmed = text.trim();
     if (!trimmed) {
       setPendingPosition(null);
@@ -155,12 +165,12 @@ function Editor() {
       // Optimistic update
       setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
       console.log('[App] handleSave editing:', editingAnnotation.id, 'project_id:', editingAnnotation.project_id);
-      if (user && editingAnnotation.project_id) {
-        await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, user);
+      if (currentUser && editingAnnotation.project_id) {
+        await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, currentUser);
       }
     } else if (pendingPosition) {
-      // Fallback chain: pendingProjectId (from click-time capture) → currentProject → projects[0]
-      const effectiveProjectId = pendingProjectId ?? currentProject?.id ?? projects[0]?.id ?? null;
+      // effectiveProjectId: capture at click time (pendingProjectId) → current at save time
+      const effectiveProjectId = pendingProjectId ?? currentProjectVal?.id ?? null;
       if (!effectiveProjectId) {
         console.error('[App] handleSave: no projectId available, cannot save annotation');
         setPendingPosition(null);
@@ -191,7 +201,7 @@ function Editor() {
       const saved = await saveAnnotation(
         { id: tempId, type: 'text', project_id: effectiveProjectId, position: pendingPosition, content: { text: trimmed } },
         effectiveProjectId,
-        user
+        currentUser
       );
 
       // ── Step 3: If DB failed, keep optimistic entry but log warning ──
@@ -221,11 +231,11 @@ function Editor() {
   const handleAnnotationDelete = useCallback(
     async (annotation: Annotation) => {
       setAnnotations((prev) => prev.filter((a) => a.id !== annotation.id));
-      if (user && annotation.project_id) {
-        await removeAnnotation(annotation.id, annotation.project_id, user);
+      if (userRef.current && annotation.project_id) {
+        await removeAnnotation(annotation.id, annotation.project_id, userRef.current);
       }
     },
-    [user]
+    [] // user accessed via ref
   );
 
   const handleGoogleSignIn = async () => {
@@ -267,6 +277,7 @@ function Editor() {
         isOwner={isOwner}
         onLoginClick={() => setIsLoginModalOpen(true)}
         isUploading={isUploading}
+        isBootstrapping={isBootstrapping}
       />
 
       <HamburgerButton

@@ -87,6 +87,10 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
+  // Track whether bootstrap has run for the current user session.
+  // Prevents double-bootstrap from React StrictMode + user-change re-triggers.
+  const bootstrappedRef = useRef(false);
+
   // ── Switch to a different project ─────────────────────────────────────────────
   const setCurrentProject = useCallback(
     async (project: Project) => {
@@ -139,8 +143,8 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   // ── Bootstrap on user change ─────────────────────────────────────────────────
   const bootstrap = useCallback(async () => {
     if (!user) return;
-    setIsBootstrapping(true);
     console.log('[ProjectContext] bootstrap started, user:', user.id);
+    setIsBootstrapping(true);
     try {
       console.log('[ProjectContext] calling bootstrapDefaultProject...');
       const project = await bootstrapDefaultProject(user);
@@ -184,7 +188,14 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { bootstrap(); }, [bootstrap]);
+  // Run bootstrap when user changes. Guard with bootstrappedRef so it only runs
+  // ONCE per user session (not twice in StrictMode, not on every re-render).
+  useEffect(() => {
+    if (!user) return;
+    if (bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
+    bootstrap();
+  }, [user, bootstrap]);
 
   // ── Clear on logout ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -194,6 +205,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setCurrentPanorama(null);
       setPanoramas([]);
       setAnnotations([]);
+      bootstrappedRef.current = false; // allow bootstrap to run for next user
     }
   }, [user]);
 

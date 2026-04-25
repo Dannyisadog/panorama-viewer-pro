@@ -8,6 +8,7 @@ interface FloatingBarProps {
   isOwner: boolean;
   onLoginClick: () => void;
   isUploading?: boolean;
+  isBootstrapping?: boolean;
 }
 
 export function FloatingBar({
@@ -18,6 +19,7 @@ export function FloatingBar({
   isOwner,
   onLoginClick,
   isUploading = false,
+  isBootstrapping = false,
 }: FloatingBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -42,16 +44,19 @@ export function FloatingBar({
       <div className="floating-bar__group">
         {/* Edit Mode Toggle */}
         <button
-          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''} ${!user || !isOwner ? 'locked' : ''}`}
+          className={`edit-mode-btn bar-btn ${editMode ? 'active' : ''} ${!user || !isOwner || isBootstrapping ? 'locked' : ''}`}
           onClick={onToggleEditMode}
+          disabled={isBootstrapping}
           title={
             !user
               ? 'Login to edit'
-              : !isOwner
-                ? 'You do not own this project'
-                : editMode
-                  ? 'Exit Edit Mode'
-                  : 'Enter Edit Mode'
+              : isBootstrapping
+                ? 'Loading project...'
+                : !isOwner
+                  ? 'You do not own this project'
+                  : editMode
+                    ? 'Exit Edit Mode'
+                    : 'Enter Edit Mode'
           }
         >
           {editMode ? (
