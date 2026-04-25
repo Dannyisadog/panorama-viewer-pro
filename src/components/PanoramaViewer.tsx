@@ -42,6 +42,8 @@ export function PanoramaViewer({
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
   const sphereRef    = useRef<THREE.Mesh | null>(null);
   const rafIdRef     = useRef(0);
+  // Request version counter — discards stale texture load callbacks
+  const loadIdRef    = useRef(0);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
@@ -245,23 +247,6 @@ export function PanoramaViewer({
     container.addEventListener('touchmove',     onTouchMove,  { passive: false });
     container.addEventListener('touchend',     onTouchEnd);
 
-    function loadTexture(url: string) {
-      new THREE.TextureLoader().load(
-        url,
-        (texture) => {
-          texture.colorSpace = THREE.SRGBColorSpace;
-          const mat = sphere.material as THREE.MeshBasicMaterial;
-          if (mat.map) mat.map.dispose();
-          mat.map = texture;
-          mat.color.set(0xffffff);
-          mat.needsUpdate = true;
-        },
-        undefined,
-        () => console.error('[PanoramaViewer] Texture load error:', url)
-      );
-    }
-    if (imageUrl) loadTexture(imageUrl);
-
     return () => {
       cancelAnimationFrame(rafId);
       ro.disconnect();
@@ -299,21 +284,32 @@ export function PanoramaViewer({
     };
   }, []);
 
-  // Texture swap effect
+  // Texture swap effect — requestId ensures only the latest load applies
   useEffect(() => {
     if (!imageUrl || !sphereRef.current) return;
+
+    // Increment and capture — stale loads will see a different version and self-cancel
+    loadIdRef.current += 1;
+    const thisLoadId = loadIdRef.current;
+
     const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
     if (mat.map) { mat.map.dispose(); mat.map = null; }
+
     new THREE.TextureLoader().load(
       imageUrl,
       (texture) => {
+        // Discard result if a newer request has since been issued
+        if (thisLoadId !== loadIdRef.current) { texture.dispose(); return; }
         texture.colorSpace = THREE.SRGBColorSpace;
         mat.map = texture;
         mat.color.set(0xffffff);
         mat.needsUpdate = true;
       },
       undefined,
-      () => console.error('[PanoramaViewer] Failed to load:', imageUrl)
+      () => {
+        if (thisLoadId !== loadIdRef.current) return;
+        console.error('[PanoramaViewer] Failed to load:', imageUrl);
+      }
     );
   }, [imageUrl]);
 
