@@ -84,7 +84,15 @@ function Editor() {
     }
   }, [isBootstrapping, isLoadingProject]);
 
-  // ── Edit mode (requires login + loaded project) ─────────────────────────────
+  // ── Reset edit mode on logout ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) {
+      setEditMode(false);
+      wasLoadingRef.current = false;
+    }
+  }, [user]);
+
+  // ── Edit mode (requires login + loaded project) ──────────────────────────────
   const handleToggleEditMode = () => {
     if (!userRef.current) {
       setIsLoginModalOpen(true);

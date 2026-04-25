@@ -205,6 +205,8 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setCurrentPanorama(null);
       setPanoramas([]);
       setAnnotations([]);
+      setIsLoadingProject(false);
+      setIsLoadingAnnotations(false);
       bootstrappedRef.current = false; // allow bootstrap to run for next user
     }
   }, [user]);
