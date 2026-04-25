@@ -8,15 +8,40 @@ import { AnnotationModal } from '@/components/AnnotationModal';
 const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 const STORAGE_KEY = 'panorama_annotations';
 
+// ── New extensible annotation types ─────────────────────────────────────────
+
+type TextContent = { text: string };
+type ImageContent = { imageUrl: string; caption?: string };
+type VideoContent = { videoUrl: string; caption?: string };
+
 export interface Annotation {
   id: string;
-  text: string;
+  type: 'text' | 'image' | 'video';
   position: { x: number; y: number; z: number };
+  content: TextContent | ImageContent | VideoContent;
+  createdAt: number;
+}
+
+// Backward compatibility: migrate old-format annotations to new format
+function migrateAnnotation(ann: any): Annotation {
+  // Already new format
+  if (ann.type && ann.content) {
+    return ann;
+  }
+  // Old format: { id, text, position } → new: { id, type:'text', position, content:{ text }, createdAt }
+  return {
+    id: ann.id,
+    type: 'text',
+    position: ann.position,
+    content: { text: ann.text ?? '' } as TextContent,
+    createdAt: ann.createdAt ?? Date.now(),
+  };
 }
 
 function loadFromStorage(): Annotation[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return raw.map(migrateAnnotation);
   } catch {
     return [];
   }
@@ -87,7 +112,7 @@ function App() {
     []
   );
 
-  // Saves — handles both create and edit
+  // Saves — handles both create and edit (text only for now)
   const handleSave = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -98,16 +123,22 @@ function App() {
     }
 
     if (editingAnnotation) {
-      // Update existing
+      // Update existing — update content.text
       setAnnotations((prev) =>
-        prev.map((a) => (a.id === editingAnnotation.id ? { ...a, text: trimmed } : a))
+        prev.map((a) =>
+          a.id === editingAnnotation.id
+            ? { ...a, content: { ...a.content, text: trimmed } }
+            : a
+        )
       );
     } else if (pendingPosition) {
       // Create new
       const newAnnotation: Annotation = {
         id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        text: trimmed,
+        type: 'text',
         position: pendingPosition,
+        content: { text: trimmed },
+        createdAt: Date.now(),
       };
       setAnnotations((prev) => [...prev, newAnnotation]);
     }
@@ -158,7 +189,7 @@ function App() {
       {modalScreenPos && (
         <AnnotationModal
           position={modalScreenPos}
-          initialText={editingAnnotation?.text}
+          initialText={editingAnnotation?.content && 'text' in editingAnnotation.content ? editingAnnotation.content.text : ''}
           onSave={handleSave}
           onCancel={handleCancel}
         />

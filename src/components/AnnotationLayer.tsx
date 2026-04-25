@@ -1,10 +1,29 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+// ── Content types ─────────────────────────────────────────────────────────────
+
+type TextContent = { text: string };
+type ImageContent = { imageUrl: string; caption?: string };
+type VideoContent = { videoUrl: string; caption?: string };
+
+// ── Unified annotation data type ─────────────────────────────────────────────
+
 export interface AnnotationData {
   id: string;
-  text: string;
+  type: 'text' | 'image' | 'video';
   position: { x: number; y: number; z: number };
+  content: TextContent | ImageContent | VideoContent;
+  createdAt: number;
+}
+
+// ── Type guard (minimal — only text is rendered for now) ─────────────────────
+
+function getText(ann: AnnotationData): string {
+  if (ann.type === 'text') {
+    return (ann.content as TextContent).text;
+  }
+  return '';
 }
 
 interface AnnotationLayerProps {
@@ -100,7 +119,7 @@ export function AnnotationLayer({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="annotation-dot" />
-          <div className="annotation-label">{ann.text}</div>
+          <div className="annotation-label">{getText(ann)}</div>
           {editMode && (
             <div className="annotation-actions">
               <button
