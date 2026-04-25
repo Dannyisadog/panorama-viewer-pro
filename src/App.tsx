@@ -8,6 +8,7 @@ import { LoginModal } from '@/components/LoginModal';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { HamburgerButton } from '@/components/HamburgerButton';
 import { useAuth } from '@/hooks/useAuth';
+import { useImageUpload } from '@/hooks/useImageUpload';
 import {
   loadAnnotations,
   saveAnnotation,
@@ -20,6 +21,7 @@ const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
 
 function App() {
   const { user, isLoading: authLoading, signInWithGoogle, signOut } = useAuth();
+  const { upload: uploadImage, isUploading } = useImageUpload();
 
   const [imageUrl, setImageUrl] = useState<string>(SAMPLE_PANORAMA);
   const [selectedFileName, setSelectedFileName] = useState<string | undefined>();
@@ -31,6 +33,11 @@ function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Tracks an uploaded image waiting to be placed as an annotation
+  const [pendingImage, setPendingImage] = useState<{
+    url: string;
+    position: { x: number; y: number; z: number };
+  } | null>(null);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,10 +70,54 @@ function App() {
     setEditMode((prev) => !prev);
   };
 
+  // ── Image annotation upload (edit mode) ──────────────────────────────────────
+  // Compresses + uploads image to Supabase Storage, then waits for click-to-place
+  const handleImageUpload = useCallback(
+    async (file: File) => {
+      if (!user) return;
+      const url = await uploadImage(file, user.id);
+      if (url) {
+        setPendingImage({ url, position: { x: 0, y: 0, z: -1 } });
+      }
+    },
+    [user, uploadImage]
+  );
+
   // Opens modal for a new annotation at the clicked 3D position
   const handleAnnotationCreate = useCallback(
     (position: { x: number; y: number; z: number }) => {
       if (!cameraRef.current || !containerRef.current) return;
+
+      // If there's a pending uploaded image, place it immediately as an annotation
+      if (pendingImage) {
+        const newAnnotation: Omit<Annotation, 'createdAt' | 'updatedAt' | 'user_id'> = {
+          id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          type: 'image',
+          position,
+          content: { type: 'image' as const, url: pendingImage.url },
+        };
+
+        if (user) {
+          saveAnnotation(newAnnotation, user).then((saved) => {
+            if (saved) setAnnotations((prev) => [...prev, saved]);
+          });
+        } else {
+          const optimistic: Annotation = {
+            ...newAnnotation,
+            user_id: 'anonymous',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          setAnnotations((prev) => [...prev, optimistic]);
+          const existing = JSON.parse(localStorage.getItem('panorama_annotations') ?? '[]');
+          localStorage.setItem('panorama_annotations', JSON.stringify([...existing, optimistic]));
+        }
+
+        setPendingImage(null);
+        return;
+      }
+
+      // Default: open text annotation modal
       const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
       const { clientWidth: width, clientHeight: height } = containerRef.current;
       const screenX = (projected.x * 0.5 + 0.5) * width;
@@ -75,7 +126,7 @@ function App() {
       setModalScreenPos({ x: screenX, y: screenY });
       setEditingAnnotation(null); // fresh create
     },
-    []
+    [pendingImage, user]
   );
 
   // Opens modal pre-filled with existing annotation text (for edit)
@@ -205,6 +256,8 @@ function App() {
         editMode={editMode}
         onToggleEditMode={handleToggleEditMode}
         user={user}
+        onImageUpload={handleImageUpload}
+        isUploading={isUploading}
       />
 
       <HamburgerButton

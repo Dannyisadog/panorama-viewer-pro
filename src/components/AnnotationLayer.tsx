@@ -1,23 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import type { Annotation, TextContent } from '@/lib/annotationsService';
 
-// ── Content types ─────────────────────────────────────────────────────────────
+type AnnotationData = Annotation;
 
-type TextContent = { text: string };
-type ImageContent = { imageUrl: string; caption?: string };
-type VideoContent = { videoUrl: string; caption?: string };
+export type { AnnotationData };
 
-// ── Unified annotation data type ─────────────────────────────────────────────
-
-export interface AnnotationData {
-  id: string;
-  type: 'text' | 'image' | 'video';
-  position: { x: number; y: number; z: number };
-  content: TextContent | ImageContent | VideoContent;
-  createdAt: number;
-}
-
-// ── Type guard (minimal — only text is rendered for now) ─────────────────────
+// ── Type guard ──────────────────────────────────────────────────────────────
 
 function getText(ann: AnnotationData): string {
   if (ann.type === 'text') {

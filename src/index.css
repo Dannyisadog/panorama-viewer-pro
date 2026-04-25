@@ -124,6 +124,11 @@ body,
   /* Inherits .bar-btn styles */
 }
 
+.upload-btn.bar-btn--loading {
+  opacity: 0.75;
+  cursor: default;
+}
+
 /* ── Edit Mode Button ─────────────────────────────────────────────── */
 .edit-mode-btn {
   /* Inherits .bar-btn styles */

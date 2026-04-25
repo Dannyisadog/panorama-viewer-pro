@@ -17,7 +17,7 @@ import type { User } from '@supabase/supabase-js';
 
 export type AnnotationType = 'text' | 'image' | 'video';
 export type TextContent = { text: string };
-export type ImageContent = { imageUrl: string; caption?: string };
+export type ImageContent = { type: 'image'; url: string; alt?: string };
 export type VideoContent = { videoUrl: string; caption?: string };
 
 export interface Annotation {
@@ -192,7 +192,7 @@ export async function loadAnnotations(user: User | null): Promise<Annotation[]> 
  * Generate a valid v4 UUID.
  * Uses crypto.randomUUID() if available, otherwise falls back.
  */
-function generateId(): string {
+export function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
