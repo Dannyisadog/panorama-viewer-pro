@@ -345,7 +345,7 @@ export function PanoramaViewer({
         cursor: editMode ? 'crosshair' : 'grab',
       }}
     >
-      {isLoading && (
+      {(isLoading || !imageUrl) && (
         <div className="viewer-loading-overlay">
           <div className="viewer-loading-overlay__spinner" />
           <span className="viewer-loading-overlay__text">Loading project…</span>
