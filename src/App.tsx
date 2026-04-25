@@ -147,16 +147,36 @@ function Editor() {
         await updateAnnotation(updated.id, updated.content, editingAnnotation.project_id, user);
       }
     } else if (pendingPosition && pendingProjectId) {
-      const newAnnotation = {
-        id: generateId(),
-        type: 'text' as const,
+      const now = Date.now();
+      const tempId = generateId();
+      const newAnnotation: Annotation = {
+        id: tempId,
+        type: 'text',
         project_id: pendingProjectId,
         position: pendingPosition,
         content: { text: trimmed },
+        createdAt: now,
+        updatedAt: now,
       };
-      const saved = await saveAnnotation(newAnnotation, pendingProjectId, user);
-      if (saved) {
-        setAnnotations((prev) => [...prev, saved]);
+
+      // ── Step 1: Optimistic local state update (always, immediately) ──
+      setAnnotations((prev) => [...prev, newAnnotation]);
+
+      // ── Step 2: Persist to Supabase ───────────────────────────────────
+      const saved = await saveAnnotation(
+        { id: tempId, type: 'text', project_id: pendingProjectId, position: pendingPosition, content: { text: trimmed } },
+        pendingProjectId,
+        user
+      );
+
+      // ── Step 3: If DB failed, keep optimistic entry but log warning ──
+      if (!saved) {
+        console.warn('[App] Annotation saved locally only (DB insert failed). project_id:', pendingProjectId);
+      } else if (saved.id !== tempId) {
+        // Server returned different ID — update with server-confirmed entry
+        setAnnotations((prev) =>
+          prev.map((a) => (a.id === tempId ? saved : a))
+        );
       }
     }
 

@@ -205,6 +205,17 @@ body,
   white-space: nowrap;
 }
 
+/* New marker appears with a pop-in animation */
+.annotation-marker--new {
+  animation: annotationPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes annotationPopIn {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 /* In edit mode, marker itself gets pointer-events so buttons work */
 .edit-mode .annotation-marker {
   pointer-events: auto;

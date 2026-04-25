@@ -104,7 +104,7 @@ export function AnnotationLayer({
         <div
           key={ann.id}
           data-id={ann.id}
-          className="annotation-marker"
+          className={`annotation-marker${ann.createdAt > Date.now() - 2000 ? ' annotation-marker--new' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="annotation-dot" />
