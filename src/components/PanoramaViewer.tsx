@@ -290,10 +290,20 @@ export function PanoramaViewer({
     };
   }, []);
 
-  // Texture swap effect — requestId ensures only the latest load applies.
-  // Sphere.material.visible is set to false at start (loading) and true on success.
+  // Texture swap effect — loadIdRef ensures only the latest load applies.
+  // On imageUrl = undefined (logout), immediately hide sphere and clear texture.
   useEffect(() => {
-    if (!imageUrl || !sphereRef.current || !materialRef.current) return;
+    if (!sphereRef.current || !materialRef.current) return;
+
+    const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
+
+    // Logout / no panorama — hide sphere and clear any stale texture immediately
+    if (!imageUrl) {
+      if (mat.map) { mat.map.dispose(); mat.map = null; }
+      mat.needsUpdate = true;
+      mat.visible = false;
+      return;
+    }
 
     // Increment and capture — stale loads will see a different version and self-cancel
     loadIdRef.current += 1;
@@ -302,7 +312,6 @@ export function PanoramaViewer({
     // Hide sphere while loading — prevents white/default flash
     materialRef.current.visible = false;
 
-    const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
     if (mat.map) { mat.map.dispose(); mat.map = null; }
 
     new THREE.TextureLoader().load(
