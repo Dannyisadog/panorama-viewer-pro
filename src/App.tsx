@@ -266,7 +266,6 @@ function Editor() {
         editMode={editMode}
         onAnnotationEdit={handleAnnotationEdit}
         onAnnotationDelete={handleAnnotationDelete}
-        rafIdRef={rafIdRef}
       />
 
       <FloatingBar
