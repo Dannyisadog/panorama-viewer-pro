@@ -41,9 +41,11 @@ export function PanoramaViewer({
   const cameraRef    = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
   const sphereRef    = useRef<THREE.Mesh | null>(null);
+  // Keep material ref so the useEffect can control sphere visibility
+  const materialRef  = useRef<THREE.MeshBasicMaterial | null>(null);
   const rafIdRef     = useRef(0);
   // Request version counter — discards stale texture load callbacks
-  const loadIdRef    = useRef(0);
+  const loadIdRef   = useRef(0);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
@@ -95,10 +97,13 @@ export function PanoramaViewer({
 
     const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 32);
     const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+    // Sphere starts HIDDEN — only visible after texture loads successfully
+    material.visible = false;
     const sphere = new THREE.Mesh(geometry, material);
     sphere.name = 'panorama-sphere';
     scene.add(sphere);
     sphereRef.current = sphere;
+    materialRef.current = material;
 
     const raycaster = new THREE.Raycaster();
 
@@ -273,6 +278,7 @@ export function PanoramaViewer({
       cameraRef.current  = null;
       rendererRef.current = null;
       sphereRef.current   = null;
+      materialRef.current = null;
       initializedRef.current = false;
     };
   }
@@ -284,13 +290,17 @@ export function PanoramaViewer({
     };
   }, []);
 
-  // Texture swap effect — requestId ensures only the latest load applies
+  // Texture swap effect — requestId ensures only the latest load applies.
+  // Sphere.material.visible is set to false at start (loading) and true on success.
   useEffect(() => {
-    if (!imageUrl || !sphereRef.current) return;
+    if (!imageUrl || !sphereRef.current || !materialRef.current) return;
 
     // Increment and capture — stale loads will see a different version and self-cancel
     loadIdRef.current += 1;
     const thisLoadId = loadIdRef.current;
+
+    // Hide sphere while loading — prevents white/default flash
+    materialRef.current.visible = false;
 
     const mat = sphereRef.current.material as THREE.MeshBasicMaterial;
     if (mat.map) { mat.map.dispose(); mat.map = null; }
@@ -304,6 +314,8 @@ export function PanoramaViewer({
         mat.map = texture;
         mat.color.set(0xffffff);
         mat.needsUpdate = true;
+        // Only show sphere AFTER texture is ready
+        mat.visible = true;
       },
       undefined,
       () => {
