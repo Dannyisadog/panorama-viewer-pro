@@ -7,48 +7,15 @@ import { AnnotationModal } from '@/components/AnnotationModal';
 import { LoginButton } from '@/components/LoginButton';
 import { LoginModal } from '@/components/LoginModal';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  loadAnnotations,
+  saveAnnotation,
+  updateAnnotation,
+  removeAnnotation,
+  type Annotation,
+} from '@/lib/annotationsService';
 
 const SAMPLE_PANORAMA = 'https://pannellum.org/images/alma.jpg';
-const STORAGE_KEY = 'panorama_annotations';
-
-// ── New extensible annotation types ─────────────────────────────────────────
-
-type TextContent = { text: string };
-type ImageContent = { imageUrl: string; caption?: string };
-type VideoContent = { videoUrl: string; caption?: string };
-
-export interface Annotation {
-  id: string;
-  type: 'text' | 'image' | 'video';
-  position: { x: number; y: number; z: number };
-  content: TextContent | ImageContent | VideoContent;
-  createdAt: number;
-}
-
-// Backward compatibility: migrate old-format annotations to new format
-function migrateAnnotation(ann: any): Annotation {
-  // Already new format
-  if (ann.type && ann.content) {
-    return ann;
-  }
-  // Old format: { id, text, position } → new: { id, type:'text', position, content:{ text }, createdAt }
-  return {
-    id: ann.id,
-    type: 'text',
-    position: ann.position,
-    content: { text: ann.text ?? '' } as TextContent,
-    createdAt: ann.createdAt ?? Date.now(),
-  };
-}
-
-function loadFromStorage(): Annotation[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return raw.map(migrateAnnotation);
-  } catch {
-    return [];
-  }
-}
 
 function App() {
   const { user, isLoading: authLoading, signInWithGoogle, signOut } = useAuth();
@@ -56,13 +23,10 @@ function App() {
   const [imageUrl, setImageUrl] = useState<string>(SAMPLE_PANORAMA);
   const [selectedFileName, setSelectedFileName] = useState<string | undefined>();
   const [editMode, setEditMode] = useState(false);
-  const [annotations, setAnnotations] = useState<Annotation[]>(loadFromStorage);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [pendingPosition, setPendingPosition] = useState<{ x: number; y: number; z: number } | null>(null);
   const [modalScreenPos, setModalScreenPos] = useState<{ x: number; y: number } | null>(null);
-  // Editing state — annotation being edited (for the modal)
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
-
-  // Login modal state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -72,9 +36,13 @@ function App() {
   const rafIdRef = useRef(0);
   const prevObjectUrlRef = useRef<string | null>(null);
 
+  // ── Hydrate annotations whenever auth state changes ─────────────────────────
+  // - Logged in  → fetch from Supabase (source of truth), cache to localStorage
+  // - Not logged → load from localStorage only
+  // Result is applied via setAnnotations after the async call resolves.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations));
-  }, [annotations]);
+    loadAnnotations(user).then(setAnnotations).catch(() => setAnnotations([]));
+  }, [user]);
 
   const handleImageSelect = (url: string, fileName: string) => {
     if (prevObjectUrlRef.current?.startsWith('blob:')) {
@@ -128,7 +96,9 @@ function App() {
   );
 
   // Saves — handles both create and edit (text only for now)
-  const handleSave = (text: string) => {
+  // Authenticated → persist to Supabase (+ localStorage cache)
+  // Unauthenticated → localStorage only
+  const handleSave = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
       setPendingPosition(null);
@@ -138,24 +108,39 @@ function App() {
     }
 
     if (editingAnnotation) {
-      // Update existing — update content.text
-      setAnnotations((prev) =>
-        prev.map((a) =>
-          a.id === editingAnnotation.id
-            ? { ...a, content: { ...a.content, text: trimmed } }
-            : a
-        )
-      );
+      // Edit existing — update locally, then sync
+      const updated = { ...editingAnnotation, content: { ...editingAnnotation.content, text: trimmed } };
+      setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+
+      if (user) {
+        updateAnnotation(updated.id, updated.content, user);
+      }
     } else if (pendingPosition) {
       // Create new
-      const newAnnotation: Annotation = {
+      const newAnnotation = {
         id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        type: 'text',
+        type: 'text' as const,
         position: pendingPosition,
         content: { text: trimmed },
-        createdAt: Date.now(),
       };
-      setAnnotations((prev) => [...prev, newAnnotation]);
+
+      if (user) {
+        const saved = await saveAnnotation(newAnnotation, user);
+        if (saved) {
+          setAnnotations((prev) => [...prev, saved]);
+        }
+      } else {
+        // Unauthenticated — write to localStorage only
+        const optimistic: Annotation = {
+          ...newAnnotation,
+          user_id: 'anonymous',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        setAnnotations((prev) => [...prev, optimistic]);
+        const existing = JSON.parse(localStorage.getItem('panorama_annotations') ?? '[]');
+        localStorage.setItem('panorama_annotations', JSON.stringify([...existing, optimistic]));
+      }
     }
 
     setPendingPosition(null);
@@ -169,15 +154,25 @@ function App() {
     setModalScreenPos(null);
   };
 
-  const handleAnnotationDelete = useCallback((id: string) => {
-    setAnnotations((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+  const handleAnnotationDelete = useCallback(
+    async (id: string) => {
+      // Optimistic local remove
+      setAnnotations((prev) => prev.filter((a) => a.id !== id));
+
+      if (user) {
+        await removeAnnotation(id, user);
+      } else {
+        const existing: Annotation[] = JSON.parse(localStorage.getItem('panorama_annotations') ?? '[]');
+        localStorage.setItem('panorama_annotations', JSON.stringify(existing.filter((a) => a.id !== id)));
+      }
+    },
+    [user]
+  );
 
   const handleGoogleSignIn = async () => {
     setIsLoginModalOpen(false);
     setIsSigningIn(true);
     await signInWithGoogle();
-    // If user cancels OAuth (error), reset loading state
     setIsSigningIn(false);
   };
 
@@ -228,7 +223,11 @@ function App() {
       {modalScreenPos && (
         <AnnotationModal
           position={modalScreenPos}
-          initialText={editingAnnotation?.content && 'text' in editingAnnotation.content ? editingAnnotation.content.text : ''}
+          initialText={
+            editingAnnotation?.content && 'text' in editingAnnotation.content
+              ? editingAnnotation.content.text
+              : ''
+          }
           onSave={handleSave}
           onCancel={handleCancel}
         />

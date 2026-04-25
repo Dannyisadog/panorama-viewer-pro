@@ -45,9 +45,11 @@ describe('App — initial render', () => {
     expect(screen.getByTestId('annotation-layer')).toBeInTheDocument();
   });
 
-  it('saves empty annotations array to localStorage on init', () => {
+  it('saves empty annotations array to localStorage on first annotation creation', () => {
+    // localStorage should NOT be written on mount when there are no annotations.
+    // It is only written when a CRUD operation actually occurs.
     render(<App />);
-    expect(mockLocalStorage.getItem('panorama_annotations')).toBe('[]');
+    expect(mockLocalStorage.getItem('panorama_annotations')).toBe(null);
   });
 });
 
