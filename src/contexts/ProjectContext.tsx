@@ -100,7 +100,8 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setIsLoadingProject(true);
       setIsLoadingAnnotations(true);
 
-      console.debug('[ProjectContext] Switching to project:', project.id, project.name);
+      console.log('[ProjectContext] Switching to project:', project.id, project.name);
+      console.log('[ProjectContext] userRef.current:', userRef.current?.id ?? 'NULL');
 
       try {
         // Load all panoramas + default panorama in parallel
@@ -139,17 +140,23 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const bootstrap = useCallback(async () => {
     if (!user) return;
     setIsBootstrapping(true);
+    console.log('[ProjectContext] bootstrap started, user:', user.id);
     try {
+      console.log('[ProjectContext] calling bootstrapDefaultProject...');
       const project = await bootstrapDefaultProject(user);
+      console.log('[ProjectContext] bootstrapDefaultProject returned:', project?.id ?? 'NULL');
       if (!project || !userRef.current) return;
 
+      console.log('[ProjectContext] calling fetchProjects...');
       const allProjects = await fetchProjects(user);
+      console.log('[ProjectContext] fetchProjects returned:', allProjects.length, 'projects');
       if (!userRef.current) return;
 
       const [allPanoramas, panorama] = await Promise.all([
         fetchPanoramas(project.id, userRef.current),
         fetchDefaultPanorama(project.id, userRef.current),
       ]);
+      console.log('[ProjectContext] panoramas:', allPanoramas.length, 'default:', panorama?.id ?? 'NULL');
 
       if (!userRef.current) return;
 
@@ -160,15 +167,20 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
 
       if (!userRef.current) return;
 
+      console.log('[ProjectContext] setting state: projects, currentProject, panoramas, currentPanorama');
       setProjects(allProjects);
       setCurrentProjectState(project);
       setPanoramas(allPanoramas);
       setCurrentPanorama(finalPanorama ?? null);
 
       const anns = await loadAnnotations(project.id, userRef.current);
+      console.log('[ProjectContext] loadAnnotations returned:', anns.length, 'annotations');
       if (userRef.current) setAnnotations(anns);
+    } catch (err) {
+      console.error('[ProjectContext] bootstrap error:', err);
     } finally {
       setIsBootstrapping(false);
+      console.log('[ProjectContext] bootstrap done, isBootstrapping:', false);
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
