@@ -45,53 +45,62 @@ export function AnnotationLayer({
   const positionedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    // RAF loop runs in BOTH edit and view mode — no early return
+    // RAF loop runs in BOTH edit and view mode.
+    // Never do an early-return that would skip a frame when refs are already valid —
+    // only skip if a ref hasn't been initialized yet (null/undefined on first call).
     const syncRafLoop = () => {
-      if (!rafIdRef) return;
+      if (!rafIdRef) {
+        rafIdRef!.current = requestAnimationFrame(syncRafLoop);
+        return;
+      }
 
       const layer = layerRef.current;
       const camera = cameraRef.current;
       const container = containerRef.current;
-      if (!layer || !camera || !container) {
-        rafIdRef.current = requestAnimationFrame(syncRafLoop);
-        return;
+      const width = container?.clientWidth ?? 0;
+      const height = container?.clientHeight ?? 0;
+
+      // Only run projection if camera + container + layer are all initialized.
+      // This is a one-time gate — after init they stay non-null for the session.
+      if (layer && camera && width > 0 && height > 0) {
+        const currentAnnotations = annotationsRef.current;
+
+        currentAnnotations.forEach((ann) => {
+          const el = layer.querySelector(`[data-id="${ann.id}"]`) as HTMLElement | null;
+          if (!el) return;
+
+          const pos = new THREE.Vector3(ann.position.x, ann.position.y, ann.position.z);
+          pos.project(camera);
+
+          // Guard against NaN / invalid projection
+          if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
+            el.style.visibility = 'hidden';
+            return;
+          }
+
+          // Relaxed frustum check: hide only when clearly behind camera (z > 0.95).
+          // Annotations slightly behind the camera plane should remain visible —
+          // they may swing back into view as the camera rotates.
+          // This prevents the jarring "disappear during rotation" flicker.
+          if (pos.z > 0.95) {
+            el.style.visibility = 'hidden';
+            return;
+          }
+
+          const screenX = (pos.x * 0.5 + 0.5) * width;
+          const screenY = (-pos.y * 0.5 + 0.5) * height;
+
+          el.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`;
+
+          // First time we position this annotation — mark it visible and clear the --new flag
+          // so the pop-in animation only plays on first paint, not every mount
+          if (!positionedRef.current.has(ann.id)) {
+            positionedRef.current.add(ann.id);
+            el.style.visibility = 'visible';
+            el.classList.remove('annotation-marker--new');
+          }
+        });
       }
-
-      const { clientWidth: width, clientHeight: height } = container;
-      const currentAnnotations = annotationsRef.current;
-
-      currentAnnotations.forEach((ann) => {
-        const el = layer.querySelector(`[data-id="${ann.id}"]`) as HTMLElement | null;
-        if (!el) return;
-
-        const pos = new THREE.Vector3(ann.position.x, ann.position.y, ann.position.z);
-        pos.project(camera);
-
-        // Guard against NaN / invalid projection
-        if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
-          el.style.visibility = 'hidden';
-          return;
-        }
-
-        // Hide when behind camera
-        if (pos.z > 1 || pos.z < -1) {
-          el.style.visibility = 'hidden';
-          return;
-        }
-
-        const screenX = (pos.x * 0.5 + 0.5) * width;
-        const screenY = (-pos.y * 0.5 + 0.5) * height;
-
-        el.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`;
-
-        // First time we position this annotation — mark it visible and clear the --new flag
-        // so the pop-in animation only plays on first paint, not every mount
-        if (!positionedRef.current.has(ann.id)) {
-          positionedRef.current.add(ann.id);
-          el.style.visibility = 'visible';
-          el.classList.remove('annotation-marker--new');
-        }
-      });
 
       rafIdRef.current = requestAnimationFrame(syncRafLoop);
     };
