@@ -28,6 +28,7 @@ function Editor() {
   const {
     currentProject,
     currentPanorama,
+    setCurrentPanorama,
     annotations,
     setAnnotations,
     imageUrl,
@@ -63,22 +64,28 @@ function Editor() {
     setEditMode((prev) => !prev);
   };
 
-  // ── Upload panorama → update DB + local panorama state ─────────────────────
+  // ── Upload panorama → update DB + viewer immediately ─────────────────────────
   const handleUpload = useCallback(
     async (file: File) => {
       if (!user || !currentPanorama) return;
+
       const url = await uploadFile(file, 'panoramas', user.id);
       if (!url) return;
 
+      // Revoke stale blob URL
       if (prevObjectUrlRef.current?.startsWith('blob:')) {
         URL.revokeObjectURL(prevObjectUrlRef.current);
       }
       prevObjectUrlRef.current = url;
 
-      // Persist to DB
+      // ── Step 1: Optimistic local state update (viewer reacts immediately) ──
+      const updatedPanorama = { ...currentPanorama, image_url: url };
+      setCurrentPanorama(updatedPanorama);
+
+      // ── Step 2: Persist to DB ───────────────────────────────────────────────
       await updatePanoramaImage(currentPanorama.id, url, user);
     },
-    [user, currentPanorama, uploadFile]
+    [user, currentPanorama, uploadFile, setCurrentPanorama]
   );
 
   // ── Create text annotation (click-to-place → modal) ────────────────────────

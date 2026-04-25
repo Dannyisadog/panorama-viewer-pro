@@ -59,6 +59,7 @@ interface ProjectContextValue {
 
   // Actions
   setCurrentProject: (project: Project) => Promise<void>;
+  setCurrentPanorama: (panorama: Panorama) => void;
   createProjectWithPanorama: (name: string, imageUrl: string) => Promise<Project | null>;
   refreshAnnotations: () => Promise<void>;
 }
@@ -250,6 +251,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       isCreatingProject,
       imageUrl,
       setCurrentProject,
+      setCurrentPanorama,
       createProjectWithPanorama,
       refreshAnnotations,
     }}>
