@@ -598,3 +598,122 @@ body,
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   transform: translateY(0);
 }
+
+/* ── Left Sidebar ──────────────────────────────────────────────────────────── */
+.left-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 100vh;
+  z-index: 200;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+
+  /* Glassmorphism */
+  background: rgba(10, 10, 18, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+
+  pointer-events: none; /* let clicks pass through empty areas to canvas */
+}
+
+.left-sidebar__section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  pointer-events: auto;
+}
+
+.left-sidebar__divider {
+  width: 32px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.10);
+  margin: 12px 0;
+}
+
+.left-sidebar__spacer {
+  flex: 1;
+}
+
+/* ── Sidebar Button (base) ──────────────────────────────────────────────────── */
+.sidebar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+}
+
+.sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.sidebar-btn.active {
+  background: rgba(139, 92, 246, 0.25);
+  color: #a78bfa;
+}
+
+.sidebar-btn.active:hover {
+  background: rgba(139, 92, 246, 0.35);
+}
+
+.sidebar-btn.locked {
+  color: rgba(255, 255, 255, 0.30);
+  cursor: not-allowed;
+}
+
+.sidebar-btn.locked:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.30);
+}
+
+.sidebar-btn--loading {
+  cursor: default;
+}
+
+.sidebar-btn--loading:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ── Avatar ────────────────────────────────────────────────────────────────── */
+.sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.sidebar-avatar--placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.30);
+  color: #a78bfa;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-btn--avatar {
+  padding: 0;
+  overflow: hidden;
+}

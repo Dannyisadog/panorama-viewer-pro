@@ -4,8 +4,8 @@ import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { FloatingBar } from '@/components/FloatingBar';
 import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLayer';
 import { AnnotationModal } from '@/components/AnnotationModal';
-import { LoginButton } from '@/components/LoginButton';
 import { LoginModal } from '@/components/LoginModal';
+import { LeftSidebar } from '@/components/LeftSidebar';
 import { useAuth } from '@/hooks/useAuth';
 import {
   loadAnnotations,
@@ -205,9 +205,11 @@ function App() {
         user={user}
       />
 
-      <LoginButton
+      <LeftSidebar
         user={user}
         isLoading={authLoading}
+        editMode={editMode}
+        onToggleEditMode={handleToggleEditMode}
         onLoginClick={() => setIsLoginModalOpen(true)}
         onLogout={signOut}
       />
