@@ -61,7 +61,7 @@ interface ProjectContextValue {
   imageUrl: string | undefined;
 
   // Actions
-  setCurrentProject: (project: Project) => Promise<void>;
+  setCurrentProject: (project: Project | null) => Promise<void>;
   setCurrentPanorama: (panorama: Panorama) => void;
   createProjectWithPanorama: (name: string, imageUrl: string) => Promise<Project | null>;
   renameProject: (projectId: string, name: string) => Promise<boolean>;
@@ -97,7 +97,14 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
 
   // ── Switch to a different project ─────────────────────────────────────────────
   const setCurrentProject = useCallback(
-    async (project: Project) => {
+    async (project: Project | null) => {
+      if (!project) {
+        setCurrentProjectState(null);
+        setCurrentPanorama(null);
+        setPanoramas([]);
+        setAnnotations([]);
+        return;
+      }
       if (!userRef.current) return;
 
       // Immediately show "no panorama" state so the viewer clears stale texture
