@@ -734,7 +734,7 @@ body,
 
 /* ── Auth Section ──────────────────────────────────────────────────────────── */
 .left-sidebar__auth {
-  padding: 12px 12px 20px;
+  padding: 12px 12px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
