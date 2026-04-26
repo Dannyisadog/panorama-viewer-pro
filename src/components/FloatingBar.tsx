@@ -88,7 +88,7 @@ export function FloatingBar({
         <button
           className={`upload-btn bar-btn ${isUploading ? 'bar-btn--loading' : ''} ${!user || !isOwner ? 'locked' : ''}`}
           onClick={handleUploadClick}
-          disabled={isUploading || !user || !isOwner}
+          disabled={isUploading || !isOwner}
           title={!user ? 'Login to upload' : isUploading ? 'Uploading...' : 'Upload Panorama'}
         >
           {isUploading ? (
