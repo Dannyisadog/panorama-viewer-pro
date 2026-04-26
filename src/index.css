@@ -949,20 +949,38 @@ body,
 .left-sidebar__project-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 6px 8px;
   border-radius: 8px;
   border: none;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
   text-align: left;
   width: 100%;
   transition: background 0.12s;
   font-family: inherit;
 }
 
+.left-sidebar__project-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font-family: inherit;
+}
+
 .left-sidebar__project-item:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.left-sidebar__project-item:hover .left-sidebar__project-actions {
+  display: flex;
 }
 
 .left-sidebar__project-item--active {
@@ -971,6 +989,81 @@ body,
 
 .left-sidebar__project-item--active:hover {
   background: rgba(139, 92, 246, 0.20);
+}
+
+.left-sidebar__project-actions {
+  display: none;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.sidebar-btn--action {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  padding: 0;
+  border-radius: 5px;
+}
+
+.sidebar-btn--action:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-btn--action-danger:hover {
+  background: rgba(239, 68, 68, 0.20);
+  color: #f87171;
+}
+
+.left-sidebar__rename-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.50);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.90);
+  font-family: inherit;
+  outline: none;
+}
+
+.left-sidebar__delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.left-sidebar__delete-confirm-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  flex: 1;
+}
+
+.sidebar-btn--confirm-yes,
+.sidebar-btn--confirm-no {
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 5px;
+}
+
+.sidebar-btn--confirm-yes {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.sidebar-btn--confirm-yes:hover {
+  background: rgba(239, 68, 68, 0.40);
+}
+
+.sidebar-btn--confirm-no {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.60);
+}
+
+.sidebar-btn--confirm-no:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .left-sidebar__project-avatar {

@@ -24,6 +24,8 @@ import {
   bootstrapDefaultProject,
   fetchProjects,
   createProject,
+  updateProject,
+  deleteProject,
   type Project,
 } from '@/api/projects';
 import {
@@ -62,6 +64,8 @@ interface ProjectContextValue {
   setCurrentProject: (project: Project) => Promise<void>;
   setCurrentPanorama: (panorama: Panorama) => void;
   createProjectWithPanorama: (name: string, imageUrl: string) => Promise<Project | null>;
+  renameProject: (projectId: string, name: string) => Promise<boolean>;
+  removeProject: (projectId: string) => Promise<boolean>;
   refreshAnnotations: () => Promise<void>;
 }
 
@@ -258,6 +262,41 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
     [setCurrentProject] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // ── Rename project ────────────────────────────────────────────────────────────
+  const renameProject = useCallback(
+    async (projectId: string, name: string): Promise<boolean> => {
+      if (!userRef.current || !name.trim()) return false;
+      const ok = await updateProject(projectId, name.trim(), userRef.current);
+      if (ok) {
+        setProjects((prev) =>
+          prev.map((p) => p.id === projectId ? { ...p, name: name.trim() } : p)
+        );
+      }
+      return ok;
+    },
+    []
+  );
+
+  // ── Delete project ────────────────────────────────────────────────────────────
+  const removeProject = useCallback(
+    async (projectId: string): Promise<boolean> => {
+      if (!userRef.current) return false;
+      const ok = await deleteProject(projectId, userRef.current);
+      if (ok) {
+        setProjects((prev) => prev.filter((p) => p.id !== projectId));
+        // If deleting current project, reset viewer
+        if (currentProject?.id === projectId) {
+          setCurrentProjectState(null);
+          setCurrentPanorama(null);
+          setPanoramas([]);
+          setAnnotations([]);
+        }
+      }
+      return ok;
+    },
+    [currentProject]
+  );
+
   // ── Derived ──────────────────────────────────────────────────────────────────
   /**
    * Permission: user can edit this project IF they own it.
@@ -285,6 +324,8 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setCurrentProject,
       setCurrentPanorama,
       createProjectWithPanorama,
+      renameProject,
+      removeProject,
       refreshAnnotations,
     }}>
       {children}

@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js';
+import { useState, useRef } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface LeftSidebarProps {
@@ -74,7 +75,12 @@ function getInitials(name: string): string {
 }
 
 export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, onNewProjectClick }: LeftSidebarProps) {
-  const { projects, currentProject, isOwner, setCurrentProject, isCreatingProject } = useProject();
+  const { projects, currentProject, isOwner, setCurrentProject, isCreatingProject, renameProject, removeProject } = useProject();
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   return (
     <aside className={`left-sidebar${isOpen ? ' left-sidebar--open' : ''}`}>
@@ -163,23 +169,88 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
             ) : (
               projects.map((project) => {
                 const isActive = currentProject?.id === project.id;
+                const isRenaming = renamingId === project.id;
+                const isDeleteConfirm = deleteConfirmId === project.id;
                 return (
-                  <button
+                  <div
                     key={project.id}
                     className={`left-sidebar__project-item ${isActive ? 'left-sidebar__project-item--active' : ''}`}
-                    onClick={() => setCurrentProject(project)}
-                    title={project.name}
+                    ref={menuRef}
                   >
-                    <span className="left-sidebar__project-avatar">
-                      {getInitials(project.name)}
-                    </span>
-                    <span className="left-sidebar__project-name">{project.name}</span>
-                    {isActive && (
-                      <span className="left-sidebar__project-active-dot">
-                        <CheckIcon />
-                      </span>
+                    {isRenaming ? (
+                      <input
+                        className="left-sidebar__rename-input"
+                        autoFocus
+                        defaultValue={project.name}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            const val = renameValue.trim() || project.name;
+                            await renameProject(project.id, val);
+                            setRenamingId(null);
+                          }
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        onBlur={() => setRenamingId(null)}
+                      />
+                    ) : isDeleteConfirm ? (
+                      <div className="left-sidebar__delete-confirm">
+                        <span className="left-sidebar__delete-confirm-text">Delete?</span>
+                        <button
+                          className="sidebar-btn sidebar-btn--confirm-yes"
+                          onClick={async () => {
+                            await removeProject(project.id);
+                            setDeleteConfirmId(null);
+                          }}
+                          title="Confirm delete"
+                        >Yes</button>
+                        <button
+                          className="sidebar-btn sidebar-btn--confirm-no"
+                          onClick={() => setDeleteConfirmId(null)}
+                          title="Cancel"
+                        >No</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="left-sidebar__project-btn"
+                        onClick={() => setCurrentProject(project)}
+                        title={project.name}
+                      >
+                        <span className="left-sidebar__project-avatar">
+                          {getInitials(project.name)}
+                        </span>
+                        <span className="left-sidebar__project-name">{project.name}</span>
+                        {isActive && (
+                          <span className="left-sidebar__project-active-dot">
+                            <CheckIcon />
+                          </span>
+                        )}
+                      </button>
                     )}
-                  </button>
+                    {!isRenaming && !isDeleteConfirm && (
+                      <div className="left-sidebar__project-actions">
+                        <button
+                          className="sidebar-btn sidebar-btn--action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(project.id);
+                            setRenameValue(project.name);
+                            setMenuOpenId(null);
+                          }}
+                          title="Rename"
+                        >✏️</button>
+                        <button
+                          className="sidebar-btn sidebar-btn--action sidebar-btn--action-danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(project.id);
+                            setMenuOpenId(null);
+                          }}
+                          title="Delete"
+                        >🗑️</button>
+                      </div>
+                    )}
+                  </div>
                 );
               })
             )
