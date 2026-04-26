@@ -86,6 +86,54 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
         <span className="left-sidebar__brand-name">Panorama</span>
       </div>
 
+      {/* ── Auth Section (moved below logo) ─────────────────────── */}
+      <div className="left-sidebar__auth">
+        {isLoading ? (
+          <button className="sidebar-btn sidebar-btn--loading" disabled title="Loading...">
+            <SpinnerIcon />
+          </button>
+        ) : user ? (
+          <div className="left-sidebar__auth-logged-in">
+            <div className="sidebar-account">
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={user.user_metadata?.full_name ?? user.email ?? 'User'}
+                  className="sidebar-avatar"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="sidebar-avatar sidebar-avatar--placeholder">
+                  {getInitials(user.user_metadata?.full_name ?? user.email ?? 'U')}
+                </div>
+              )}
+              <div className="sidebar-account__info">
+                <span className="sidebar-account__name">
+                  {user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'User'}
+                </span>
+                <span className="sidebar-account__email">{user.email}</span>
+              </div>
+            </div>
+            <button
+              className="sidebar-btn sidebar-btn--logout"
+              onClick={onLogout}
+              title="Sign out"
+            >
+              <LogoutIcon />
+            </button>
+          </div>
+        ) : (
+          <button
+            className="sidebar-btn sidebar-btn--login"
+            onClick={onLoginClick}
+            title="Sign in"
+          >
+            <LoginIcon />
+            <span>Login</span>
+          </button>
+        )}
+      </div>
+
       <div className="left-sidebar__divider" />
 
       {/* ── Project List ──────────────────────────────────────────── */}
@@ -154,55 +202,6 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
 
       {/* ── Spacer ────────────────────────────────────────────────── */}
       <div className="left-sidebar__spacer" />
-
-      {/* ── Auth Section ──────────────────────────────────────────── */}
-      <div className="left-sidebar__auth">
-        <div className="left-sidebar__divider" />
-        {isLoading ? (
-          <button className="sidebar-btn sidebar-btn--loading" disabled title="Loading...">
-            <SpinnerIcon />
-          </button>
-        ) : user ? (
-          <div className="left-sidebar__auth-logged-in">
-            <div className="sidebar-account">
-              {user.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={user.user_metadata?.full_name ?? user.email ?? 'User'}
-                  className="sidebar-avatar"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="sidebar-avatar sidebar-avatar--placeholder">
-                  {getInitials(user.user_metadata?.full_name ?? user.email ?? 'U')}
-                </div>
-              )}
-              <div className="sidebar-account__info">
-                <span className="sidebar-account__name">
-                  {user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'User'}
-                </span>
-                <span className="sidebar-account__email">{user.email}</span>
-              </div>
-            </div>
-            <button
-              className="sidebar-btn sidebar-btn--logout"
-              onClick={onLogout}
-              title="Sign out"
-            >
-              <LogoutIcon />
-            </button>
-          </div>
-        ) : (
-          <button
-            className="sidebar-btn sidebar-btn--login"
-            onClick={onLoginClick}
-            title="Sign in"
-          >
-            <LoginIcon />
-            <span>Login</span>
-          </button>
-        )}
-      </div>
     </aside>
   );
 }
