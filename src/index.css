@@ -979,10 +979,6 @@ body,
   background: rgba(255, 255, 255, 0.06);
 }
 
-.left-sidebar__project-item:hover .left-sidebar__project-actions {
-  display: flex;
-}
-
 .left-sidebar__project-item--active {
   background: rgba(139, 92, 246, 0.15);
 }
@@ -991,79 +987,71 @@ body,
   background: rgba(139, 92, 246, 0.20);
 }
 
-.left-sidebar__project-actions {
-  display: none;
-  gap: 2px;
+/* ── Kebab Menu ─────────────────────────────────────────────────────────────── */
+.left-sidebar__kebab-wrapper {
+  position: relative;
   flex-shrink: 0;
 }
 
-.sidebar-btn--action {
+.left-sidebar__kebab-btn {
   width: 24px;
   height: 24px;
-  font-size: 11px;
-  padding: 0;
-  border-radius: 5px;
-}
-
-.sidebar-btn--action:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.sidebar-btn--action-danger:hover {
-  background: rgba(239, 68, 68, 0.20);
-  color: #f87171;
-}
-
-.left-sidebar__rename-input {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.50);
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.90);
-  font-family: inherit;
-  outline: none;
-}
-
-.left-sidebar__delete-confirm {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex: 1;
-}
-
-.left-sidebar__delete-confirm-text {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
-  flex: 1;
-}
-
-.sidebar-btn--confirm-yes,
-.sidebar-btn--confirm-no {
-  height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
+  justify-content: center;
+  background: transparent;
+  border: none;
   border-radius: 5px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
 }
 
-.sidebar-btn--confirm-yes {
-  background: rgba(239, 68, 68, 0.25);
+.left-sidebar__kebab-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.left-sidebar__kebab-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #1e1b2e;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 120px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.left-sidebar__kebab-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.80);
+  font-family: inherit;
+}
+
+.left-sidebar__kebab-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.left-sidebar__kebab-menu-item--danger {
   color: #f87171;
 }
 
-.sidebar-btn--confirm-yes:hover {
-  background: rgba(239, 68, 68, 0.40);
-}
-
-.sidebar-btn--confirm-no {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.60);
-}
-
-.sidebar-btn--confirm-no:hover {
-  background: rgba(255, 255, 255, 0.14);
+.left-sidebar__kebab-menu-item--danger:hover {
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .left-sidebar__project-avatar {
@@ -1390,4 +1378,116 @@ body,
 
 .hamburger--open .hamburger__line:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+
+.modal {
+  background: #1e1b2e;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 16px 0;
+}
+
+.modal__body {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.70);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.modal__body strong {
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.modal__input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.90);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+  transition: border-color 0.15s;
+}
+
+.modal__input:focus {
+  border-color: rgba(139, 92, 246, 0.60);
+}
+
+.modal__input::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+
+.modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal__btn {
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.modal__btn--cancel {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.modal__btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.modal__btn--confirm {
+  background: rgba(139, 92, 246, 0.30);
+  color: #c4b5fd;
+}
+
+.modal__btn--confirm:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.50);
+}
+
+.modal__btn--confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal__btn--danger {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.modal__btn--danger:hover {
+  background: rgba(239, 68, 68, 0.40);
 }

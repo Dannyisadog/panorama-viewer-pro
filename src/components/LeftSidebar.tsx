@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface LeftSidebarProps {
@@ -10,6 +10,11 @@ interface LeftSidebarProps {
   onLogout: () => void;
   onNewProjectClick: () => void;
 }
+
+type ModalState =
+  | { type: 'rename'; projectId: string; projectName: string }
+  | { type: 'delete'; projectId: string; projectName: string }
+  | null;
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 function LoginIcon() {
@@ -76,9 +81,51 @@ function getInitials(name: string): string {
 
 export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, onNewProjectClick }: LeftSidebarProps) {
   const { projects, currentProject, isOwner, setCurrentProject, isCreatingProject, renameProject, removeProject } = useProject();
-  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [modal, setModal] = useState<ModalState>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpenId]);
+
+  const openRenameModal = (projectId: string, projectName: string) => {
+    setMenuOpenId(null);
+    setRenameValue(projectName);
+    setModal({ type: 'rename', projectId, projectName });
+  };
+
+  const openDeleteModal = (projectId: string, projectName: string) => {
+    setMenuOpenId(null);
+    setModal({ type: 'delete', projectId, projectName });
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!modal || modal.type !== 'rename') return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    await renameProject(modal.projectId, trimmed);
+    setModal(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!modal || modal.type !== 'delete') return;
+    const deletedId = modal.projectId;
+    await removeProject(deletedId);
+    if (currentProject?.id === deletedId) {
+      setCurrentProject(null);
+    }
+    setModal(null);
+  };
 
   return (
     <aside className={`left-sidebar${isOpen ? ' left-sidebar--open' : ''}`}>
@@ -167,84 +214,58 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
             ) : (
               projects.map((project) => {
                 const isActive = currentProject?.id === project.id;
-                const isRenaming = renamingId === project.id;
-                const isDeleteConfirm = deleteConfirmId === project.id;
+                const isMenuOpen = menuOpenId === project.id;
                 return (
                   <div
                     key={project.id}
                     className={`left-sidebar__project-item ${isActive ? 'left-sidebar__project-item--active' : ''}`}
                   >
-                    {isRenaming ? (
-                      <input
-                        className="left-sidebar__rename-input"
-                        autoFocus
-                        defaultValue={project.name}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            const val = renameValue.trim() || project.name;
-                            await renameProject(project.id, val);
-                            setRenamingId(null);
-                          }
-                          if (e.key === 'Escape') setRenamingId(null);
-                        }}
-                        onBlur={() => setRenamingId(null)}
-                      />
-                    ) : isDeleteConfirm ? (
-                      <div className="left-sidebar__delete-confirm">
-                        <span className="left-sidebar__delete-confirm-text">Delete?</span>
-                        <button
-                          className="sidebar-btn sidebar-btn--confirm-yes"
-                          onClick={async () => {
-                            await removeProject(project.id);
-                            setDeleteConfirmId(null);
-                          }}
-                          title="Confirm delete"
-                        >Yes</button>
-                        <button
-                          className="sidebar-btn sidebar-btn--confirm-no"
-                          onClick={() => setDeleteConfirmId(null)}
-                          title="Cancel"
-                        >No</button>
-                      </div>
-                    ) : (
-                      <button
-                        className="left-sidebar__project-btn"
-                        onClick={() => setCurrentProject(project)}
-                        title={project.name}
-                      >
-                        <span className="left-sidebar__project-avatar">
-                          {getInitials(project.name)}
+                    <button
+                      className="left-sidebar__project-btn"
+                      onClick={() => setCurrentProject(project)}
+                      title={project.name}
+                    >
+                      <span className="left-sidebar__project-avatar">
+                        {getInitials(project.name)}
+                      </span>
+                      <span className="left-sidebar__project-name">{project.name}</span>
+                      {isActive && (
+                        <span className="left-sidebar__project-active-dot">
+                          <CheckIcon />
                         </span>
-                        <span className="left-sidebar__project-name">{project.name}</span>
-                        {isActive && (
-                          <span className="left-sidebar__project-active-dot">
-                            <CheckIcon />
-                          </span>
-                        )}
+                      )}
+                    </button>
+
+                    <div className="left-sidebar__kebab-wrapper" ref={isMenuOpen ? menuRef : undefined}>
+                      <button
+                        className="left-sidebar__kebab-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenId(isMenuOpen ? null : project.id);
+                        }}
+                        title="More options"
+                        aria-label="Project options"
+                      >
+                        <span>⋯</span>
                       </button>
-                    )}
-                    {!isRenaming && !isDeleteConfirm && (
-                      <div className="left-sidebar__project-actions">
-                        <button
-                          className="sidebar-btn sidebar-btn--action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenamingId(project.id);
-                            setRenameValue(project.name);
-                          }}
-                          title="Rename"
-                        >✏️</button>
-                        <button
-                          className="sidebar-btn sidebar-btn--action sidebar-btn--action-danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirmId(project.id);
-                          }}
-                          title="Delete"
-                        >🗑️</button>
-                      </div>
-                    )}
+
+                      {isMenuOpen && (
+                        <div className="left-sidebar__kebab-menu">
+                          <button
+                            className="left-sidebar__kebab-menu-item"
+                            onClick={() => openRenameModal(project.id, project.name)}
+                          >
+                            Rename
+                          </button>
+                          <button
+                            className="left-sidebar__kebab-menu-item left-sidebar__kebab-menu-item--danger"
+                            onClick={() => openDeleteModal(project.id, project.name)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -268,6 +289,59 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
 
       {/* ── Spacer ────────────────────────────────────────────────── */}
       <div className="left-sidebar__spacer" />
+
+      {/* ── Rename Modal ────────────────────────────────────────────── */}
+      {modal?.type === 'rename' && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal__title">Rename Project</h3>
+            <input
+              className="modal__input"
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameConfirm();
+                if (e.key === 'Escape') setModal(null);
+              }}
+              placeholder="Project name"
+              maxLength={100}
+            />
+            <div className="modal__actions">
+              <button className="modal__btn modal__btn--cancel" onClick={() => setModal(null)}>
+                Cancel
+              </button>
+              <button
+                className="modal__btn modal__btn--confirm"
+                onClick={handleRenameConfirm}
+                disabled={!renameValue.trim()}
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ────────────────────────────────── */}
+      {modal?.type === 'delete' && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal__title">Delete Project</h3>
+            <p className="modal__body">
+              Are you sure you want to delete <strong>"{modal.projectName}"</strong>? This action cannot be undone.
+            </p>
+            <div className="modal__actions">
+              <button className="modal__btn modal__btn--cancel" onClick={() => setModal(null)}>
+                Cancel
+              </button>
+              <button className="modal__btn modal__btn--danger" onClick={handleDeleteConfirm}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
