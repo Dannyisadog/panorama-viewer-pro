@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface LeftSidebarProps {
@@ -82,8 +83,10 @@ function getInitials(name: string): string {
 export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, onNewProjectClick }: LeftSidebarProps) {
   const { projects, currentProject, isOwner, setCurrentProject, isCreatingProject, renameProject, removeProject } = useProject();
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [renameValue, setRenameValue] = useState('');
+  const kebabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -92,6 +95,7 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpenId(null);
+        setMenuPos(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -100,12 +104,14 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
 
   const openRenameModal = (projectId: string, projectName: string) => {
     setMenuOpenId(null);
+    setMenuPos(null);
     setRenameValue(projectName);
     setModal({ type: 'rename', projectId, projectName });
   };
 
   const openDeleteModal = (projectId: string, projectName: string) => {
     setMenuOpenId(null);
+    setMenuPos(null);
     setModal({ type: 'delete', projectId, projectName });
   };
 
@@ -214,7 +220,6 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
             ) : (
               projects.map((project) => {
                 const isActive = currentProject?.id === project.id;
-                const isMenuOpen = menuOpenId === project.id;
                 return (
                   <div
                     key={project.id}
@@ -236,36 +241,20 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
                       )}
                     </button>
 
-                    <div className="left-sidebar__kebab-wrapper" ref={isMenuOpen ? menuRef : undefined}>
-                      <button
-                        className="left-sidebar__kebab-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuOpenId(isMenuOpen ? null : project.id);
-                        }}
-                        title="More options"
-                        aria-label="Project options"
-                      >
-                        <span>⋯</span>
-                      </button>
-
-                      {isMenuOpen && (
-                        <div className="left-sidebar__kebab-menu">
-                          <button
-                            className="left-sidebar__kebab-menu-item"
-                            onClick={() => openRenameModal(project.id, project.name)}
-                          >
-                            Rename
-                          </button>
-                          <button
-                            className="left-sidebar__kebab-menu-item left-sidebar__kebab-menu-item--danger"
-                            onClick={() => openDeleteModal(project.id, project.name)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      className="left-sidebar__kebab-btn"
+                      ref={(el) => { kebabRefs.current[project.id] = el; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMenuPos({ top: rect.bottom, left: rect.left });
+                        setMenuOpenId(menuOpenId === project.id ? null : project.id);
+                      }}
+                      title="More options"
+                      aria-label="Project options"
+                    >
+                      <span>⋯</span>
+                    </button>
                   </div>
                 );
               })
@@ -289,6 +278,38 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
 
       {/* ── Spacer ────────────────────────────────────────────────── */}
       <div className="left-sidebar__spacer" />
+
+      {/* ── Kebab Dropdown Portal ─────────────────────────────────── */}
+      {menuOpenId && menuPos && (
+        ReactDOM.createPortal(
+          <div
+            className="left-sidebar__kebab-menu"
+            ref={menuRef}
+            style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              className="left-sidebar__kebab-menu-item"
+              onClick={() => {
+                const project = projects.find((p) => p.id === menuOpenId);
+                if (project) openRenameModal(project.id, project.name);
+              }}
+            >
+              Rename
+            </button>
+            <button
+              className="left-sidebar__kebab-menu-item left-sidebar__kebab-menu-item--danger"
+              onClick={() => {
+                const project = projects.find((p) => p.id === menuOpenId);
+                if (project) openDeleteModal(project.id, project.name);
+              }}
+            >
+              Delete
+            </button>
+          </div>,
+          document.body,
+        )
+      )}
 
       {/* ── Rename Modal ────────────────────────────────────────────── */}
       {modal?.type === 'rename' && (
