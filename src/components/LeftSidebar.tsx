@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 
 interface LeftSidebarProps {
@@ -76,11 +76,9 @@ function getInitials(name: string): string {
 
 export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, onNewProjectClick }: LeftSidebarProps) {
   const { projects, currentProject, isOwner, setCurrentProject, isCreatingProject, renameProject, removeProject } = useProject();
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   return (
     <aside className={`left-sidebar${isOpen ? ' left-sidebar--open' : ''}`}>
@@ -175,7 +173,6 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
                   <div
                     key={project.id}
                     className={`left-sidebar__project-item ${isActive ? 'left-sidebar__project-item--active' : ''}`}
-                    ref={menuRef}
                   >
                     {isRenaming ? (
                       <input
@@ -235,7 +232,6 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
                             e.stopPropagation();
                             setRenamingId(project.id);
                             setRenameValue(project.name);
-                            setMenuOpenId(null);
                           }}
                           title="Rename"
                         >✏️</button>
@@ -244,7 +240,6 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteConfirmId(project.id);
-                            setMenuOpenId(null);
                           }}
                           title="Delete"
                         >🗑️</button>
