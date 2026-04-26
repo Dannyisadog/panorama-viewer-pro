@@ -23,7 +23,16 @@ export interface NewPanoramaInput {
   is_default?: boolean;
 }
 
-const SAMPLE_PANORAMA_URL = 'https://pannellum.org/images/alma.jpg';
+const SAMPLE_PANORAMA_URLS = [
+  'https://wvbihdzfzcuepvbdqfqm.supabase.co/storage/v1/object/public/panoramas/sample/203d78ae0bba41d0adc04466782a023e_alma.jpg',
+  'https://wvbihdzfzcuepvbdqfqm.supabase.co/storage/v1/object/public/panoramas/sample/f33d2fcffbbe4b65920f2ec17a6514ad_zhangjiajie.jpg',
+  'https://wvbihdzfzcuepvbdqfqm.supabase.co/storage/v1/object/public/panoramas/sample/2702c8f4e0314c90bbf1143678138715_interior1.jpg',
+  'https://wvbihdzfzcuepvbdqfqm.supabase.co/storage/v1/object/public/panoramas/sample/d66d568c4e9d45aa814c1468c5ac3caf_library.jpg',
+  'https://wvbihdzfzcuepvbdqfqm.supabase.co/storage/v1/object/public/panoramas/sample/67ea585ed57d48d08dfe573560bdbc19_bedroom.jpg',
+];
+
+export const getRandomSampleUrl = () =>
+  SAMPLE_PANORAMA_URLS[Math.floor(Math.random() * SAMPLE_PANORAMA_URLS.length)];
 
 // ── Fetch all panoramas for a project ──────────────────────────────────────────
 export async function fetchPanoramas(projectId: string, _user: User): Promise<Panorama[]> {
@@ -90,7 +99,7 @@ export async function createDefaultPanorama(
   if (existing) return existing;
 
   return createPanorama(
-    { project_id: projectId, image_url: SAMPLE_PANORAMA_URL, is_default: true },
+    { project_id: projectId, image_url: getRandomSampleUrl(), is_default: true },
     user
   );
 }

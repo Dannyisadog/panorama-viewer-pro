@@ -34,7 +34,7 @@ import {
 } from '@/api/panoramas';
 import { loadAnnotations, type Annotation } from '@/lib/annotationsService';
 
-export const SAMPLE_PANORAMA_URL = 'https://pannellum.org/images/alma.jpg';
+import { getRandomSampleUrl } from '@/api/panoramas';
 
 // ── Shape ─────────────────────────────────────────────────────────────────────
 interface ProjectContextValue {
@@ -165,7 +165,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       if (!userRef.current) return;
 
       const finalPanorama = panorama ?? (await createPanorama(
-        { project_id: project.id, image_url: SAMPLE_PANORAMA_URL, is_default: true },
+        { project_id: project.id, image_url: getRandomSampleUrl(), is_default: true },
         userRef.current
       ));
 
@@ -266,7 +266,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const isOwner = currentProject?.user_id === user?.id;
   // When currentPanorama is null (loading/not yet loaded), show sample panorama.
   // This ensures non-logged-in users see a default panorama, not a black screen.
-  const imageUrl = currentPanorama?.image_url ?? SAMPLE_PANORAMA_URL;
+  const imageUrl = currentPanorama?.image_url ?? getRandomSampleUrl();
 
   return (
     <ProjectContext.Provider value={{
