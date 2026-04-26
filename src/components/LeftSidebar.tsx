@@ -86,6 +86,7 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
   const kebabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -119,17 +120,21 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
     if (!modal || modal.type !== 'rename') return;
     const trimmed = renameValue.trim();
     if (!trimmed) return;
+    setModalLoading(true);
     await renameProject(modal.projectId, trimmed);
+    setModalLoading(false);
     setModal(null);
   };
 
   const handleDeleteConfirm = async () => {
     if (!modal || modal.type !== 'delete') return;
+    setModalLoading(true);
     const deletedId = modal.projectId;
     await removeProject(deletedId);
     if (currentProject?.id === deletedId) {
       setCurrentProject(null);
     }
+    setModalLoading(false);
     setModal(null);
   };
 
@@ -335,9 +340,9 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
               <button
                 className="modal__btn modal__btn--confirm"
                 onClick={handleRenameConfirm}
-                disabled={!renameValue.trim()}
+                disabled={!renameValue.trim() || modalLoading}
               >
-                Rename
+                {modalLoading ? 'Renaming…' : 'Rename'}
               </button>
             </div>
           </div>
@@ -357,8 +362,8 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
               <button className="modal__btn modal__btn--cancel" onClick={() => setModal(null)}>
                 Cancel
               </button>
-              <button className="modal__btn modal__btn--danger" onClick={handleDeleteConfirm}>
-                Delete
+              <button className="modal__btn modal__btn--danger" onClick={handleDeleteConfirm} disabled={modalLoading}>
+                {modalLoading ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>

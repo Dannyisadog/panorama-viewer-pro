@@ -1480,6 +1480,11 @@ body,
   color: #f87171;
 }
 
-.modal__btn--danger:hover {
+.modal__btn--danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.40);
+}
+
+.modal__btn--danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
