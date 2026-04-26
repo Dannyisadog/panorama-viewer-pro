@@ -312,7 +312,7 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
       )}
 
       {/* ── Rename Modal ────────────────────────────────────────────── */}
-      {modal?.type === 'rename' && (
+      {modal?.type === 'rename' && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal__title">Rename Project</h3>
@@ -341,11 +341,12 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── Delete Confirmation Modal ────────────────────────────────── */}
-      {modal?.type === 'delete' && (
+      {modal?.type === 'delete' && ReactDOM.createPortal(
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal__title">Delete Project</h3>
@@ -361,7 +362,8 @@ export function LeftSidebar({ user, isLoading, isOpen, onLoginClick, onLogout, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </aside>
   );
