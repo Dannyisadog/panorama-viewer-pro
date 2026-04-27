@@ -297,22 +297,28 @@ function Editor() {
   );
 
   // ── Drag annotation: update position on release ──────────────────────────────
+  // NOTE: do NOT add 'annotations' to deps — we read it from the ref to avoid stale closures.
+  // The caller (AnnotationLayer) passes (id, position); we look up the annotation
+  // from the live ref so we always have the current data even across re-renders.
   const handleAnnotationPositionUpdate = useCallback(
     async (id: string, position: { x: number; y: number; z: number }) => {
-      const ann = annotations.find((a) => a.id === id);
-      if (!ann) return;
+      const ann = annotationsRef.current.find((a) => a.id === id);
+      if (!ann) {
+        console.warn('[App] handleAnnotationPositionUpdate: annotation not found', id);
+        return;
+      }
 
-      // Optimistic local update
+      // Optimistic local update — functional form so it always uses latest state
       setAnnotations((prev) =>
         prev.map((a) => (a.id === id ? { ...a, position } : a))
       );
 
-      // Persist to Supabase
+      // Persist to Supabase (fire and forget — already optimistically updated)
       if (ann.project_id) {
         await updateAnnotationPosition(id, position, ann.project_id, userRef.current);
       }
     },
-    [annotations]
+    [] // no deps — intentionally stable across re-renders; reads annotationsRef.current
   );
 
   const handleGoogleSignIn = async () => {
