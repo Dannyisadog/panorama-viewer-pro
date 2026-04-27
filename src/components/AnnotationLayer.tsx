@@ -185,12 +185,14 @@ export function AnnotationLayer({
       }
 
       const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
+      console.log('[DEBUG pointerup] worldPos:', worldPos);
 
       isDraggingRef.current = false;
       draggingIdRef.current = null;
       setDraggingId(null);
 
       if (worldPos && onAnnotationPositionUpdate) {
+        console.log('[DEBUG pointerup] calling onAnnotationPositionUpdate');
         onAnnotationPositionUpdate(id, worldPos);
       }
     },

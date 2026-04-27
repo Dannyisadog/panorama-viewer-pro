@@ -302,6 +302,7 @@ function Editor() {
   // from the live ref so we always have the current data even across re-renders.
   const handleAnnotationPositionUpdate = useCallback(
     async (id: string, position: { x: number; y: number; z: number }) => {
+      console.log('[DEBUG handleAnnotationPositionUpdate] id:', id, 'newPos:', position);
       const ann = annotationsRef.current.find((a) => a.id === id);
       if (!ann) {
         console.warn('[App] handleAnnotationPositionUpdate: annotation not found', id);
@@ -309,13 +310,16 @@ function Editor() {
       }
 
       // Optimistic local update — functional form so it always uses latest state
-      setAnnotations((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, position } : a))
-      );
+      setAnnotations((prev) => {
+        console.log('[DEBUG setAnnotations] prev.length:', prev.length, 'id:', id, 'newPos:', position);
+        return prev.map((a) => (a.id === id ? { ...a, position } : a));
+      });
 
       // Persist to Supabase (fire and forget — already optimistically updated)
       if (ann.project_id) {
+        console.log('[DEBUG Supabase] updating id:', id, 'project:', ann.project_id, 'user:', userRef.current?.id);
         await updateAnnotationPosition(id, position, ann.project_id, userRef.current);
+        console.log('[DEBUG Supabase] done');
       }
     },
     [] // no deps — intentionally stable across re-renders; reads annotationsRef.current
