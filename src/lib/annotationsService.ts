@@ -159,6 +159,39 @@ export async function updateAnnotation(
 }
 
 /**
+ * Update annotation position.
+ * RLS: UPDATE policy USING clause enforces project ownership server-side.
+ */
+export async function updateAnnotationPosition(
+  id: string,
+  position: { x: number; y: number; z: number },
+  projectId: string,
+  user: User | null
+): Promise<boolean> {
+  if (user) {
+    const { error } = await supabase
+      .from('annotations')
+      .update({ position, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('project_id', projectId);
+
+    if (error) {
+      console.error('[Annotations] updatePosition error:', error.message);
+      return false;
+    }
+    return true;
+  } else {
+    // Anonymous: localStorage only
+    const cached = loadFromStorage(projectId);
+    const updated = cached.map((a) =>
+      a.id === id ? { ...a, position, updatedAt: Date.now() } : a
+    );
+    saveToStorage(projectId, updated);
+    return true;
+  }
+}
+
+/**
  * Delete an annotation.
  * RLS: DELETE policy USING clause enforces project ownership server-side.
  */

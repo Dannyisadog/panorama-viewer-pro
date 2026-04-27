@@ -15,6 +15,7 @@ import { useUpload } from '@/hooks/useUpload';
 import {
   saveAnnotation,
   updateAnnotation,
+  updateAnnotationPosition,
   removeAnnotation,
   type Annotation,
   generateId,
@@ -295,6 +296,25 @@ function Editor() {
     [] // user accessed via ref
   );
 
+  // ── Drag annotation: update position on release ──────────────────────────────
+  const handleAnnotationPositionUpdate = useCallback(
+    async (id: string, position: { x: number; y: number; z: number }) => {
+      const ann = annotations.find((a) => a.id === id);
+      if (!ann) return;
+
+      // Optimistic local update
+      setAnnotations((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, position } : a))
+      );
+
+      // Persist to Supabase
+      if (ann.project_id) {
+        await updateAnnotationPosition(id, position, ann.project_id, userRef.current);
+      }
+    },
+    [annotations]
+  );
+
   const handleGoogleSignIn = async () => {
     setIsLoginModalOpen(false);
     setIsSigningIn(true);
@@ -324,6 +344,7 @@ function Editor() {
         editMode={editMode}
         onAnnotationEdit={handleAnnotationEdit}
         onAnnotationDelete={handleAnnotationDelete}
+        onAnnotationPositionUpdate={handleAnnotationPositionUpdate}
       />
 
       <FloatingBar
