@@ -13,7 +13,11 @@ export interface PanoramaViewerProps {
   maxFov?: number;
   className?: string;
   editMode?: boolean;
-  onAnnotationCreate?: (position: { x: number; y: number; z: number }) => void;
+  onPanoramaClick?: (data: {
+    screenX: number;
+    screenY: number;
+    worldPosition: { x: number; y: number; z: number };
+  }) => void;
   cameraRef?: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   rafIdRef?: React.MutableRefObject<number>;
@@ -30,7 +34,7 @@ export function PanoramaViewer({
   maxFov = 100,
   className,
   editMode = false,
-  onAnnotationCreate,
+  onPanoramaClick,
   cameraRef: externalCameraRef,
   containerRef: externalContainerRef,
   rafIdRef: externalRafIdRef,
@@ -189,7 +193,7 @@ export function PanoramaViewer({
 
     const onClick = (e: MouseEvent) => {
       // Read editMode from ref to always get current value (not stale closure)
-      if (!editModeRef.current || !onAnnotationCreate) return;
+      if (!editModeRef.current || !onPanoramaClick) return;
       const dx = e.clientX - (lastPointerRef.current?.x ?? e.clientX);
       const dy = e.clientY - (lastPointerRef.current?.y ?? e.clientY);
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) return;
@@ -203,7 +207,11 @@ export function PanoramaViewer({
       const hits = raycaster.intersectObject(sphere);
       if (hits.length > 0) {
         const p = hits[0].point;
-        onAnnotationCreate({ x: p.x, y: p.y, z: p.z });
+        onPanoramaClick?.({
+          screenX: e.clientX - rect.left,
+          screenY: e.clientY - rect.top,
+          worldPosition: { x: p.x, y: p.y, z: p.z },
+        });
       }
     };
 

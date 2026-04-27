@@ -4,6 +4,7 @@ import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { FloatingBar } from '@/components/FloatingBar';
 import { AnnotationLayer, type AnnotationData } from '@/components/AnnotationLayer';
 import { AnnotationModal } from '@/components/AnnotationModal';
+import { ClickMenu, type ClickMenuType } from '@/components/ClickMenu';
 import { LoginModal } from '@/components/LoginModal';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { HamburgerButton } from '@/components/HamburgerButton';
@@ -50,6 +51,11 @@ function Editor() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [clickMenuData, setClickMenuData] = useState<{
+    screenX: number;
+    screenY: number;
+    worldPosition: { x: number; y: number; z: number };
+  } | null>(null);
 
   // Refs shared with PanoramaViewer
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,26 +135,52 @@ function Editor() {
     [uploadFile, setCurrentPanorama]
   );
 
-  // ── Create text annotation (click-to-place → modal) ────────────────────────
-  const handleAnnotationCreate = useCallback(
-    (position: { x: number; y: number; z: number }) => {
-      if (!cameraRef.current || !containerRef.current) return;
+  // ── Edit mode click → show floating menu ────────────────────────────────────
+  const handlePanoramaClick = useCallback(
+    (data: {
+      screenX: number;
+      screenY: number;
+      worldPosition: { x: number; y: number; z: number };
+    }) => {
       if (!currentProjectRef.current) {
-        console.warn('[App] handleAnnotationCreate: currentProjectRef not ready');
+        console.warn('[App] handlePanoramaClick: currentProjectRef not ready');
         return;
       }
-      const project = currentProjectRef.current;
-      const projected = new THREE.Vector3(position.x, position.y, position.z).project(cameraRef.current);
-      const { clientWidth: width, clientHeight: height } = containerRef.current;
-      const screenX = (projected.x * 0.5 + 0.5) * width;
-      const screenY = (-projected.y * 0.5 + 0.5) * height;
-      setPendingPosition(position);
-      setPendingProjectId(project.id);
-      setModalScreenPos({ x: screenX, y: screenY });
-      setEditingAnnotation(null);
+      setClickMenuData(data);
+      setPendingPosition(data.worldPosition);
+      setPendingProjectId(currentProjectRef.current.id);
     },
-    [] // stable — all inputs via refs
+    []
   );
+
+  // ── Menu selection: Text → open modal; Image/Video → just close ─────────────
+  const handleClickMenuSelect = useCallback(
+    (type: ClickMenuType) => {
+      if (type === 'text') {
+        // Open text annotation modal at click position
+        if (clickMenuData && cameraRef.current && containerRef.current) {
+          const projected = new THREE.Vector3(
+            clickMenuData.worldPosition.x,
+            clickMenuData.worldPosition.y,
+            clickMenuData.worldPosition.z
+          ).project(cameraRef.current);
+          const { clientWidth: width, clientHeight: height } = containerRef.current;
+          setModalScreenPos({
+            x: (projected.x * 0.5 + 0.5) * width,
+            y: (-projected.y * 0.5 + 0.5) * height,
+          });
+          setEditingAnnotation(null);
+        }
+      }
+      // Image/Video: do nothing for now, just close the menu
+      setClickMenuData(null);
+    },
+    [clickMenuData]
+  );
+
+  const handleClickMenuClose = useCallback(() => {
+    setClickMenuData(null);
+  }, []);
 
   // ── Open edit modal for existing annotation ─────────────────────────────────
   const handleAnnotationEdit = useCallback(
@@ -279,7 +311,7 @@ function Editor() {
         isLoading={isLoadingProject || isBootstrapping}
         isBootstrapping={isBootstrapping}
         editMode={editMode}
-        onAnnotationCreate={handleAnnotationCreate}
+        onPanoramaClick={handlePanoramaClick}
         cameraRef={cameraRef}
         containerRef={containerRef}
         rafIdRef={rafIdRef}
@@ -345,6 +377,15 @@ function Editor() {
           }
           onSave={handleSave}
           onCancel={handleCancel}
+        />
+      )}
+
+      {clickMenuData && (
+        <ClickMenu
+          screenX={clickMenuData.screenX}
+          screenY={clickMenuData.screenY}
+          onSelect={handleClickMenuSelect}
+          onClose={handleClickMenuClose}
         />
       )}
     </div>
