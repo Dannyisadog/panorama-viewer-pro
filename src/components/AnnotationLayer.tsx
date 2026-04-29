@@ -47,6 +47,8 @@ export function AnnotationLayer({
   const draggingIdRef = useRef<string | null>(null);
   const dragScreenXRef = useRef(0);
   const dragScreenYRef = useRef(0);
+  // Store last valid world position during drag — used on pointerup to avoid raycaster miss
+  const lastValidWorldPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
   // State drives re-render for CSS class; ref drives RAF loop for position updates
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -166,37 +168,37 @@ export function AnnotationLayer({
       const rect = container.getBoundingClientRect();
       dragScreenXRef.current = e.clientX - rect.left;
       dragScreenYRef.current = e.clientY - rect.top;
+
+      // Continuously compute world position and cache it — pointerup will reuse this
+      const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
+      if (worldPos) {
+        lastValidWorldPosRef.current = worldPos;
+      }
     },
-    [containerRef]
+    [containerRef, unprojectToWorld]
   );
 
   const handlePointerUp = useCallback(
-    (e: PointerEvent) => {
+    () => {
       if (!isDraggingRef.current || !draggingIdRef.current) return;
 
-      const container = containerRef.current;
       const id = draggingIdRef.current;
 
-      // Unproject final screen position to world
-      const rect = container?.getBoundingClientRect();
-      if (rect) {
-        dragScreenXRef.current = e.clientX - rect.left;
-        dragScreenYRef.current = e.clientY - rect.top;
-      }
-
-      const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
+      // Use last valid world position — avoids raycaster miss on pointerup
+      const worldPos = lastValidWorldPosRef.current;
       console.log('[DEBUG pointerup] worldPos:', worldPos);
 
       isDraggingRef.current = false;
       draggingIdRef.current = null;
       setDraggingId(null);
+      lastValidWorldPosRef.current = null;
 
       if (worldPos && onAnnotationPositionUpdate) {
         console.log('[DEBUG pointerup] calling onAnnotationPositionUpdate');
         onAnnotationPositionUpdate(id, worldPos);
       }
     },
-    [containerRef, unprojectToWorld, onAnnotationPositionUpdate]
+    [onAnnotationPositionUpdate]
   );
 
   // Attach global pointer move/up listeners when drag starts
