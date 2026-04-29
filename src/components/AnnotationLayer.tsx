@@ -200,9 +200,12 @@ export function AnnotationLayer({
     if (!layer) return;
 
     const onLayerPointerDown = (e: PointerEvent) => {
+      // Only allow dragging from the drag handle
       const target = e.target as HTMLElement;
-      // Find the closest annotation-marker ancestor
-      const marker = target.closest('.annotation-marker') as HTMLElement | null;
+      const dragHandle = target.closest('[data-drag-handle="true"]') as HTMLElement | null;
+      if (!dragHandle) return;
+
+      const marker = dragHandle.closest('.annotation-marker') as HTMLElement | null;
       if (!marker) return;
 
       const id = marker.dataset.id;
@@ -258,6 +261,14 @@ export function AnnotationLayer({
           className={`annotation-marker${ann.createdAt > Date.now() - 2000 ? ' annotation-marker--new' : ''}${draggingId === ann.id ? ' annotation-marker--dragging' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
+          {editMode && (
+            <div className="annotation-drag-handle" data-drag-handle="true" title="Drag to move">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+              </svg>
+            </div>
+          )}
           <div className="annotation-dot" />
           <div className="annotation-label">{getText(ann)}</div>
           {editMode && (

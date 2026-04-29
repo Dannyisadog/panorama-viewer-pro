@@ -299,6 +299,29 @@ body,
   opacity: 1;
 }
 
+/* ── Annotation Drag Handle ─────────────────────────────────────── */
+.annotation-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.annotation-drag-handle:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.annotation-drag-handle:active {
+  cursor: grabbing;
+}
+
 .annotation-action-btn {
   width: 28px;
   height: 28px;
