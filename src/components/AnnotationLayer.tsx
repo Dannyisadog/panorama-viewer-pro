@@ -48,11 +48,13 @@ export function AnnotationLayer({
   // Accumulated pixel delta since drag start: (currentCursor - initialCursor)
   const dragDeltaXRef = useRef(0);
   const dragDeltaYRef = useRef(0);
-  // Actual cursor screen position during drag (used for unprojectToWorld)
+  // Initial cursor screen position at drag start
   const dragCursorXRef = useRef(0);
   const dragCursorYRef = useRef(0);
   // Store last valid world position during drag — used on pointerup to avoid raycaster miss
   const lastValidWorldPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
+  // Annotation's projected screen position at drag start — used for correct world pos on pointerup
+  const dragStartProjectedRef = useRef<{ screenX: number; screenY: number } | null>(null);
   // State drives re-render for CSS class; ref drives RAF loop for position updates
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -79,10 +81,7 @@ export function AnnotationLayer({
     (screenX: number, screenY: number): { x: number; y: number; z: number } | null => {
       const camera = cameraRef.current;
       const container = containerRef.current;
-      if (!camera || !container) {
-        console.log('[DEBUG unproject] camera or container missing', { hasCamera: !!camera, hasContainer: !!container });
-        return null;
-      }
+      if (!camera || !container) return null;
       const rect = container.getBoundingClientRect
         ? container.getBoundingClientRect()
         : { left: 0, top: 0, width: container.clientWidth, height: container.clientHeight };
@@ -174,10 +173,17 @@ export function AnnotationLayer({
       dragDeltaXRef.current = cursorX - dragCursorXRef.current;
       dragDeltaYRef.current = cursorY - dragCursorYRef.current;
 
-      // Cache world position using actual cursor screen position
-      const worldPos = unprojectToWorld(cursorX, cursorY);
-      if (worldPos) {
-        lastValidWorldPosRef.current = worldPos;
+      // Cache world position using the annotation's DRAGGED screen position
+      // (startProjected + delta), so lastValidWorldPosRef stays consistent with visual position
+      const start = dragStartProjectedRef.current;
+      if (start) {
+        const worldPos = unprojectToWorld(
+          start.screenX + dragDeltaXRef.current,
+          start.screenY + dragDeltaYRef.current
+        );
+        if (worldPos) {
+          lastValidWorldPosRef.current = worldPos;
+        }
       }
     },
     [containerRef, unprojectToWorld]
@@ -201,11 +207,24 @@ export function AnnotationLayer({
       dragCursorXRef.current = 0;
       dragCursorYRef.current = 0;
 
-      if (worldPos && onAnnotationPositionUpdate) {
+      // Compute world position from the annotation's DRAGGED screen position
+      // (dragStartProjected + delta), NOT from the cursor position.
+      // This avoids snapping when cursor is far from the annotation.
+      const start = dragStartProjectedRef.current;
+      if (start && worldPos) {
+        const finalScreenX = start.screenX + dragDeltaXRef.current;
+        const finalScreenY = start.screenY + dragDeltaYRef.current;
+        const finalWorldPos = unprojectToWorld(finalScreenX, finalScreenY);
+        if (finalWorldPos && onAnnotationPositionUpdate) {
+          onAnnotationPositionUpdate(id, finalWorldPos);
+        }
+      } else if (worldPos && onAnnotationPositionUpdate) {
+        // Fallback: use last cached world pos
         onAnnotationPositionUpdate(id, worldPos);
       }
+      dragStartProjectedRef.current = null;
     },
-    [onAnnotationPositionUpdate]
+    [onAnnotationPositionUpdate, unprojectToWorld]
   );
 
   // Attach global pointer move/up listeners when drag starts
@@ -246,6 +265,13 @@ export function AnnotationLayer({
         // Pre-compute and cache the world position at drag start
         const worldPos = unprojectToWorld(cursorX, cursorY);
         lastValidWorldPosRef.current = worldPos;
+
+        // Also store the annotation's projected screen pos at drag start
+        // so pointerup can compute worldPos from (startProjected + delta)
+        const startProjected = projectToScreen(
+          annotationsRef.current.find((a) => a.id === id)?.position ?? { x: 0, y: 0, z: 0 }
+        );
+        dragStartProjectedRef.current = startProjected;
       }
 
       // Capture pointer so we receive move/up even outside element
@@ -254,7 +280,7 @@ export function AnnotationLayer({
 
     layer.addEventListener('pointerdown', onLayerPointerDown);
     return () => layer.removeEventListener('pointerdown', onLayerPointerDown);
-  }, [editMode, containerRef]);
+  }, [editMode, containerRef, unprojectToWorld, projectToScreen]);
 
   // Global move/up listeners (added when editMode is true, removed when false)
   useEffect(() => {
