@@ -61,6 +61,9 @@ export function AnnotationLayer({
   const lastValidWorldPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
   // Annotation's projected screen position at drag start — used for correct world pos on pointerup
   const dragStartProjectedRef = useRef<{ screenX: number; screenY: number } | null>(null);
+  // Cumulative camera pan (radians) during current drag — used to keep annotation in sync with camera
+  const cumulativePanLonRef = useRef(0);
+  const cumulativePanLatRef = useRef(0);
   // State drives re-render for CSS class; ref drives RAF loop for position updates
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -128,6 +131,13 @@ export function AnnotationLayer({
 
       if (!layer || !camera || width === 0 || height === 0) return;
 
+      // If dragging, accumulate any pending camera pan into cumulative refs
+      if (isDraggingRef.current && cameraPanRef?.current) {
+        cumulativePanLonRef.current += cameraPanRef.current.dLon;
+        cumulativePanLatRef.current += cameraPanRef.current.dLat;
+        cameraPanRef.current = null;
+      }
+
       const currentAnnotations = annotationsRef.current;
 
       currentAnnotations.forEach((ann) => {
@@ -137,12 +147,15 @@ export function AnnotationLayer({
         let screenX: number;
         let screenY: number;
 
-        // If this annotation is being dragged, use projected position + accumulated delta
+        // If this annotation is being dragged, use projected position + accumulated delta + camera pan
         if (isDraggingRef.current && draggingIdRef.current === ann.id) {
           const projected = projectToScreen(ann.position);
           if (!projected) return;
-          screenX = projected.screenX + dragDeltaXRef.current;
-          screenY = projected.screenY + dragDeltaYRef.current;
+          // Apply cursor drag delta + cumulative camera pan
+          const panOffsetX = cumulativePanLonRef.current * width;
+          const panOffsetY = -cumulativePanLatRef.current * height;
+          screenX = projected.screenX + dragDeltaXRef.current + panOffsetX;
+          screenY = projected.screenY + dragDeltaYRef.current + panOffsetY;
         } else {
           const projected = projectToScreen(ann.position);
           if (!projected) {
@@ -162,7 +175,7 @@ export function AnnotationLayer({
 
     rafId = requestAnimationFrame(syncRafLoop);
     return () => cancelAnimationFrame(rafId);
-  }, [cameraRef, containerRef, projectToScreen]);
+  }, [cameraRef, containerRef, projectToScreen, cameraPanRef]);
 
   // ── Drag handlers ────────────────────────────────────────────────────────────
   const handlePointerMove = useCallback(
@@ -227,6 +240,8 @@ export function AnnotationLayer({
       const deltaX = dragDeltaXRef.current;
       const deltaY = dragDeltaYRef.current;
       const worldPos = lastValidWorldPosRef.current;
+      const panLon = cumulativePanLonRef.current;
+      const panLat = cumulativePanLatRef.current;
 
       let finalWorldPos: { x: number; y: number; z: number } | null = null;
 
@@ -246,6 +261,8 @@ export function AnnotationLayer({
       dragCursorXRef.current = 0;
       dragCursorYRef.current = 0;
       dragStartProjectedRef.current = null;
+      cumulativePanLonRef.current = 0;
+      cumulativePanLatRef.current = 0;
 
       // Persist the final position
       if (finalWorldPos && onAnnotationPositionUpdate) {
@@ -291,6 +308,8 @@ export function AnnotationLayer({
         dragCursorYRef.current = cursorY;
         dragDeltaXRef.current = 0;
         dragDeltaYRef.current = 0;
+        cumulativePanLonRef.current = 0;
+        cumulativePanLatRef.current = 0;
 
         // Pre-compute and cache the world position at drag start
         const worldPos = unprojectToWorld(cursorX, cursorY);
