@@ -195,9 +195,21 @@ export function AnnotationLayer({
 
       const id = draggingIdRef.current;
 
-      // Use last valid world position — avoids raycaster miss on pointerup
+      // Capture all ref values BEFORE clearing anything
+      const start = dragStartProjectedRef.current;
+      const deltaX = dragDeltaXRef.current;
+      const deltaY = dragDeltaYRef.current;
       const worldPos = lastValidWorldPosRef.current;
 
+      let finalWorldPos: { x: number; y: number; z: number } | null = null;
+
+      if (start && worldPos) {
+        const finalScreenX = start.screenX + deltaX;
+        const finalScreenY = start.screenY + deltaY;
+        finalWorldPos = unprojectToWorld(finalScreenX, finalScreenY);
+      }
+
+      // Now clear all refs
       isDraggingRef.current = false;
       draggingIdRef.current = null;
       setDraggingId(null);
@@ -206,23 +218,14 @@ export function AnnotationLayer({
       dragDeltaYRef.current = 0;
       dragCursorXRef.current = 0;
       dragCursorYRef.current = 0;
+      dragStartProjectedRef.current = null;
 
-      // Compute world position from the annotation's DRAGGED screen position
-      // (dragStartProjected + delta), NOT from the cursor position.
-      // This avoids snapping when cursor is far from the annotation.
-      const start = dragStartProjectedRef.current;
-      if (start && worldPos) {
-        const finalScreenX = start.screenX + dragDeltaXRef.current;
-        const finalScreenY = start.screenY + dragDeltaYRef.current;
-        const finalWorldPos = unprojectToWorld(finalScreenX, finalScreenY);
-        if (finalWorldPos && onAnnotationPositionUpdate) {
-          onAnnotationPositionUpdate(id, finalWorldPos);
-        }
+      // Persist the final position
+      if (finalWorldPos && onAnnotationPositionUpdate) {
+        onAnnotationPositionUpdate(id, finalWorldPos);
       } else if (worldPos && onAnnotationPositionUpdate) {
-        // Fallback: use last cached world pos
         onAnnotationPositionUpdate(id, worldPos);
       }
-      dragStartProjectedRef.current = null;
     },
     [onAnnotationPositionUpdate, unprojectToWorld]
   );
