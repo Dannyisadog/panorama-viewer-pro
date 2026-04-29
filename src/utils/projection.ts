@@ -70,3 +70,89 @@ export function projectToScreen(
 
   return { x: screenX, y: screenY, visible, valid };
 }
+
+/**
+ * Ray-sphere intersection: find the point where a ray from the camera through
+ * the given screen position hits a sphere of given radius centered at origin.
+ *
+ * This mirrors what THREE.Ray.intersectSphere does, but is a pure function
+ * that can be unit tested without Three.js.
+ *
+ * @param screenPos    - Screen position { x, y } in pixels
+ * @param camera       - Camera with projectionMatrix + matrixWorldInverse
+ * @param width        - Container width in pixels
+ * @param height       - Container height in pixels
+ * @param sphereRadius - Panorama sphere radius (default 500)
+ * @returns World position { x, y, z } on the sphere, or null if no hit
+ */
+export function unprojectToSphere(
+  screenPos: { x: number; y: number },
+  camera: { projectionMatrix: Float32Array; matrixWorldInverse: Float32Array },
+  width: number,
+  height: number,
+  sphereRadius: number = 500
+): Vec3 | null {
+  // Normalize screen coords to [-1, +1]
+  const nx = (screenPos.x / width) * 2 - 1;
+  const ny = -((screenPos.y / height) * 2 - 1);
+
+  // Ray in camera space: perspective ray goes from origin through (nx, ny, -1)
+  const rayCamX = nx;
+  const rayCamY = ny;
+  const rayCamZ = -1;
+
+  const mx = camera.matrixWorldInverse;
+
+  // Camera position in world space (column 3 of matrixWorldInverse)
+  const camWorldX = mx[12];
+  const camWorldY = mx[13];
+  const camWorldZ = mx[14];
+
+  // Transform ray direction from camera space to world space (transpose of matrixWorldInverse)
+  const dirX = mx[0] * rayCamX + mx[1] * rayCamY + mx[2] * rayCamZ;
+  const dirY = mx[4] * rayCamX + mx[5] * rayCamY + mx[6] * rayCamZ;
+  const dirZ = mx[8] * rayCamX + mx[9] * rayCamY + mx[10] * rayCamZ;
+
+  // Ray-sphere intersection: |O + tD|² = r²
+  const ox = camWorldX;
+  const oy = camWorldY;
+  const oz = camWorldZ;
+
+  const a = dirX * dirX + dirY * dirY + dirZ * dirZ;
+  const b = 2 * (ox * dirX + oy * dirY + oz * dirZ);
+  const c = ox * ox + oy * oy + oz * oz - sphereRadius * sphereRadius;
+
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+
+  const sqrtD = Math.sqrt(discriminant);
+
+  // Camera is INSIDE the sphere (|O| < r). The two roots give intersections
+  // on opposite sides of the sphere. We need the one in front of the camera.
+  // For perspective camera looking in -Z direction, forward hit has negative z.
+  // t1 = (-b - sqrtD)/(2a), t2 = (-b + sqrtD)/(2a)
+  // Camera at origin → t1 = -sqrtD/a, t2 = +sqrtD/a
+  // We pick the root that gives a forward (negative z for identity camera) hit.
+  let t1 = (-b - sqrtD) / (2 * a);
+  let t2 = (-b + sqrtD) / (2 * a);
+
+  let t: number;
+  // If camera is inside the sphere, pick the root with positive t (forward direction)
+  // If outside, pick the smaller |t| (nearer intersection)
+  const camDistSq = ox * ox + oy * oy + oz * oz;
+  if (camDistSq < sphereRadius * sphereRadius) {
+    // Inside: pick positive t
+    t = t2 > 0 ? t2 : t1;
+  } else {
+    // Outside: pick the smaller positive t
+    t = t1 > 0 ? t1 : t2;
+  }
+
+  const hitX = ox + t * dirX;
+  const hitY = oy + t * dirY;
+  const hitZ = oz + t * dirZ;
+
+  if (!Number.isFinite(hitX) || !Number.isFinite(hitY) || !Number.isFinite(hitZ)) return null;
+
+  return { x: hitX, y: hitY, z: hitZ };
+}
