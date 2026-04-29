@@ -147,15 +147,15 @@ export function AnnotationLayer({
         let screenX: number;
         let screenY: number;
 
-        // If this annotation is being dragged, use projected position + accumulated delta + camera pan
+        // If this annotation is being dragged, anchor on the drag-start projected position
+        // and apply drag delta + camera pan offset (NOT projectToScreen which already includes camera pan)
         if (isDraggingRef.current && draggingIdRef.current === ann.id) {
-          const projected = projectToScreen(ann.position);
-          if (!projected) return;
-          // Apply cursor drag delta + cumulative camera pan
+          const start = dragStartProjectedRef.current;
+          if (!start) return;
           const panOffsetX = cumulativePanLonRef.current * width;
           const panOffsetY = -cumulativePanLatRef.current * height;
-          screenX = projected.screenX + dragDeltaXRef.current + panOffsetX;
-          screenY = projected.screenY + dragDeltaYRef.current + panOffsetY;
+          screenX = start.screenX + dragDeltaXRef.current + panOffsetX;
+          screenY = start.screenY + dragDeltaYRef.current + panOffsetY;
         } else {
           const projected = projectToScreen(ann.position);
           if (!projected) {
