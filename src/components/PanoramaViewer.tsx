@@ -62,6 +62,8 @@ export function PanoramaViewer({
   const lastPointerRef  = useRef<{ x: number; y: number } | null>(null);
   const velocityLonRef  = useRef(0);
   const velocityLatRef  = useRef(0);
+  // Tracks whether the pointer moved enough to be considered a pan (not a click)
+  const hasPannedRef     = useRef(false);
 
   // Keep editMode ref current so click handler always reads latest value
   const editModeRef = useRef(editMode);
@@ -161,8 +163,8 @@ export function PanoramaViewer({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = true;
+      hasPannedRef.current = false;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
       velocityLonRef.current = 0;
       velocityLatRef.current = 0;
@@ -171,9 +173,10 @@ export function PanoramaViewer({
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isDraggingRef.current || !lastPointerRef.current) return;
-      if (editModeRef.current) return; // Disable rotation in edit mode
       const dx = e.clientX - lastPointerRef.current.x;
       const dy = e.clientY - lastPointerRef.current.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasPannedRef.current = true;
+      if (editModeRef.current) return; // Disable manual rotation in edit mode — camera is fixed
       const speed = 0.003;
       // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
@@ -186,7 +189,6 @@ export function PanoramaViewer({
     };
 
     const onPointerUp = () => {
-      if (editModeRef.current) return; // Disable rotation in edit mode
       isDraggingRef.current = false;
       lastPointerRef.current = null;
     };
@@ -194,9 +196,8 @@ export function PanoramaViewer({
     const onClick = (e: MouseEvent) => {
       // Read editMode from ref to always get current value (not stale closure)
       if (!editModeRef.current || !onPanoramaClick) return;
-      const dx = e.clientX - (lastPointerRef.current?.x ?? e.clientX);
-      const dy = e.clientY - (lastPointerRef.current?.y ?? e.clientY);
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) return;
+      // If user panned the view, don't fire click-to-create
+      if (hasPannedRef.current) return;
 
       const rect = container.getBoundingClientRect();
       const mouse = new THREE.Vector2(
@@ -224,19 +225,20 @@ export function PanoramaViewer({
 
     let lastTouch: { x: number; y: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
-      if (editModeRef.current) return; // Disable rotation in edit mode
       if (e.touches.length !== 1) return;
       isDraggingRef.current = true;
+      hasPannedRef.current = false;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       velocityLonRef.current = 0;
       velocityLatRef.current = 0;
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current || e.touches.length !== 1 || !lastTouch) return;
-      if (editModeRef.current) return; // Disable rotation in edit mode
+      if (editModeRef.current) return; // Disable manual rotation in edit mode
       e.preventDefault();
       const dx = e.touches[0].clientX - lastTouch.x;
       const dy = e.touches[0].clientY - lastTouch.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasPannedRef.current = true;
       const speed = 0.003;
       // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
@@ -249,6 +251,7 @@ export function PanoramaViewer({
     };
     const onTouchEnd = () => {
       isDraggingRef.current = false;
+      hasPannedRef.current = false;
       lastTouch = null;
     };
 
