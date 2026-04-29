@@ -55,8 +55,6 @@ export function PanoramaViewer({
   const rafIdRef     = useRef(0);
   // Request version counter — discards stale texture load callbacks
   const loadIdRef   = useRef(0);
-  // External camera pan delta written by AnnotationLayer during edge auto-pan
-  const internalCameraPanRef = useRef<{ dLon: number; dLat: number } | null>(null);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
