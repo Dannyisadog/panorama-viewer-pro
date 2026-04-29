@@ -171,6 +171,7 @@ export function AnnotationLayer({
 
       // Continuously compute world position and cache it — pointerup will reuse this
       const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
+      console.log('[DEBUG move] screenX:', dragScreenXRef.current, 'screenY:', dragScreenYRef.current, '→ worldPos:', worldPos);
       if (worldPos) {
         lastValidWorldPosRef.current = worldPos;
       }
