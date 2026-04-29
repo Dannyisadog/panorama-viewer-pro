@@ -91,34 +91,15 @@ export function AnnotationLayer({
       raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
 
       // Find intersection with the panorama sphere (radius 500, centered at origin)
-      const radius = 500;
+      // Use Three.js intersectSphere — handles camera-inside-sphere correctly
+      const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 500);
+      const ray = raycaster.ray;
+      const intersectPoint = new THREE.Vector3();
+      const hit = ray.intersectSphere(sphere, intersectPoint);
 
-      const dir = raycaster.ray.direction.clone();
-      const oc = raycaster.ray.origin.clone();
+      if (!hit) return null;
 
-      const a = dir.dot(dir);
-      const b = 2 * oc.dot(dir);
-      const c = oc.dot(oc) - radius * radius;
-      const discriminant = b * b - 4 * a * c;
-
-      console.log('[DEBUG unproject]', {
-        screenX, screenY,
-        nx, ny,
-        cameraPos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-        rayDir: { x: dir.x, y: dir.y, z: dir.z },
-        radius,
-        discriminant,
-        fov: camera.fov,
-        aspect: camera.aspect,
-      });
-
-      if (discriminant < 0) return null;
-
-      const t = (-b - Math.sqrt(discriminant)) / (2 * a);
-      if (t < 0) return null;
-
-      const point = raycaster.ray.at(t, new THREE.Vector3());
-      return { x: point.x, y: point.y, z: point.z };
+      return { x: intersectPoint.x, y: intersectPoint.y, z: intersectPoint.z };
     },
     [cameraRef, containerRef]
   );
@@ -183,9 +164,8 @@ export function AnnotationLayer({
       dragScreenXRef.current = e.clientX - rect.left;
       dragScreenYRef.current = e.clientY - rect.top;
 
-      // Continuously compute world position and cache it — pointerup will reuse this
+      // Cache world position during drag — pointerup will reuse the last valid one
       const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
-      console.log('[DEBUG move] screenX:', dragScreenXRef.current, 'screenY:', dragScreenYRef.current, '→ worldPos:', worldPos);
       if (worldPos) {
         lastValidWorldPosRef.current = worldPos;
       }
@@ -201,7 +181,6 @@ export function AnnotationLayer({
 
       // Use last valid world position — avoids raycaster miss on pointerup
       const worldPos = lastValidWorldPosRef.current;
-      console.log('[DEBUG pointerup] worldPos:', worldPos);
 
       isDraggingRef.current = false;
       draggingIdRef.current = null;
@@ -209,7 +188,6 @@ export function AnnotationLayer({
       lastValidWorldPosRef.current = null;
 
       if (worldPos && onAnnotationPositionUpdate) {
-        console.log('[DEBUG pointerup] calling onAnnotationPositionUpdate');
         onAnnotationPositionUpdate(id, worldPos);
       }
     },
