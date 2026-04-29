@@ -6,7 +6,7 @@ type AnnotationData = Annotation;
 
 // ── Edge auto-pan config ────────────────────────────────────────────────────────
 const EDGE_THRESHOLD = 80; // px from edge to trigger auto-pan
-const AUTO_PAN_SPEED = 0.003; // radians per pixel into the edge
+const AUTO_PAN_SPEED = 0.0005; // radians per pixel into the edge
 
 // ── Type guard ──────────────────────────────────────────────────────────────
 
@@ -186,14 +186,14 @@ export function AnnotationLayer({
         let dLon = 0;
         let dLat = 0;
         if (cursorX < EDGE_THRESHOLD) {
-          dLon = -(EDGE_THRESHOLD - cursorX) * AUTO_PAN_SPEED;
+          dLon = (EDGE_THRESHOLD - cursorX) * AUTO_PAN_SPEED;
         } else if (cursorX > w - EDGE_THRESHOLD) {
-          dLon = (cursorX - (w - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
+          dLon = -(cursorX - (w - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
         }
         if (cursorY < EDGE_THRESHOLD) {
-          dLat = -(EDGE_THRESHOLD - cursorY) * AUTO_PAN_SPEED;
+          dLat = (EDGE_THRESHOLD - cursorY) * AUTO_PAN_SPEED;
         } else if (cursorY > h - EDGE_THRESHOLD) {
-          dLat = (cursorY - (h - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
+          dLat = -(cursorY - (h - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
         }
         if (dLon !== 0 || dLat !== 0) {
           cameraPanRef.current = { dLon, dLat };
