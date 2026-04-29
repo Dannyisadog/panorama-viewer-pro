@@ -69,10 +69,12 @@ function Editor() {
   const projectsRef = useRef(projects);
   const currentPanoramaRef = useRef(currentPanorama);
   const userRef = useRef(user);
+  const annotationsRef = useRef(annotations);
   useEffect(() => { currentProjectRef.current = currentProject; }, [currentProject]);
   useEffect(() => { projectsRef.current = projects; }, [projects]);
   useEffect(() => { currentPanoramaRef.current = currentPanorama; }, [currentPanorama]);
   useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { annotationsRef.current = annotations; }, [annotations]);
 
   // ── Auto-close sidebar when project loading completes ────────────────────────
   // Detects true → false transition on isBootstrapping OR isLoadingProject.
