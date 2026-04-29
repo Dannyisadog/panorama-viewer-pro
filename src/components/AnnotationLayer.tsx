@@ -243,11 +243,17 @@ export function AnnotationLayer({
       const panLon = cumulativePanLonRef.current;
       const panLat = cumulativePanLatRef.current;
 
+      const container = containerRef.current;
+      const cW = container?.clientWidth ?? 0;
+      const cH = container?.clientHeight ?? 0;
+
       let finalWorldPos: { x: number; y: number; z: number } | null = null;
 
       if (start && worldPos) {
-        const finalScreenX = start.screenX + deltaX;
-        const finalScreenY = start.screenY + deltaY;
+        const panOffsetX = panLon * cW;
+        const panOffsetY = -panLat * cH;
+        const finalScreenX = start.screenX + deltaX - panOffsetX;
+        const finalScreenY = start.screenY + deltaY - panOffsetY;
         finalWorldPos = unprojectToWorld(finalScreenX, finalScreenY);
       }
 
