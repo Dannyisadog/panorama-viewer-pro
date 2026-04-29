@@ -62,6 +62,7 @@ function Editor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rafIdRef = useRef(0);
+  const cameraPanRef = useRef<{ dLon: number; dLat: number } | null>(null);
   const prevObjectUrlRef = useRef<string | null>(null);
 
   // ── Stable refs — always read latest state inside async callbacks ────────────
@@ -340,12 +341,14 @@ function Editor() {
         cameraRef={cameraRef}
         containerRef={containerRef}
         rafIdRef={rafIdRef}
+        cameraPanRef={cameraPanRef}
       />
 
       <AnnotationLayer
         annotations={annotations}
         cameraRef={cameraRef}
         containerRef={containerRef}
+        cameraPanRef={cameraPanRef}
         editMode={editMode}
         onAnnotationEdit={handleAnnotationEdit}
         onAnnotationDelete={handleAnnotationDelete}

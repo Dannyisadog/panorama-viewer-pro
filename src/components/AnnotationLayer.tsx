@@ -4,6 +4,10 @@ import type { Annotation, TextContent } from '@/lib/annotationsService';
 
 type AnnotationData = Annotation;
 
+// ── Edge auto-pan config ────────────────────────────────────────────────────────
+const EDGE_THRESHOLD = 80; // px from edge to trigger auto-pan
+const AUTO_PAN_SPEED = 0.003; // radians per pixel into the edge
+
 // ── Type guard ──────────────────────────────────────────────────────────────
 
 function getText(ann: AnnotationData): string {
@@ -17,6 +21,7 @@ interface AnnotationLayerProps {
   annotations: AnnotationData[];
   cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  cameraPanRef?: React.MutableRefObject<{ dLon: number; dLat: number } | null>;
   editMode: boolean;
   onAnnotationEdit?: (annotation: AnnotationData) => void;
   onAnnotationDelete?: (annotation: AnnotationData) => void;
@@ -32,6 +37,7 @@ export function AnnotationLayer({
   annotations,
   cameraRef,
   containerRef,
+  cameraPanRef,
   editMode,
   onAnnotationEdit,
   onAnnotationDelete,
@@ -168,10 +174,31 @@ export function AnnotationLayer({
       const rect = container.getBoundingClientRect();
       const cursorX = e.clientX - rect.left;
       const cursorY = e.clientY - rect.top;
+      const w = rect.width;
+      const h = rect.height;
 
       // Accumulate delta from initial click position
       dragDeltaXRef.current = cursorX - dragCursorXRef.current;
       dragDeltaYRef.current = cursorY - dragCursorYRef.current;
+
+      // Edge auto-pan: write camera pan delta if cursor is near an edge
+      if (cameraPanRef) {
+        let dLon = 0;
+        let dLat = 0;
+        if (cursorX < EDGE_THRESHOLD) {
+          dLon = -(EDGE_THRESHOLD - cursorX) * AUTO_PAN_SPEED;
+        } else if (cursorX > w - EDGE_THRESHOLD) {
+          dLon = (cursorX - (w - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
+        }
+        if (cursorY < EDGE_THRESHOLD) {
+          dLat = -(EDGE_THRESHOLD - cursorY) * AUTO_PAN_SPEED;
+        } else if (cursorY > h - EDGE_THRESHOLD) {
+          dLat = (cursorY - (h - EDGE_THRESHOLD)) * AUTO_PAN_SPEED;
+        }
+        if (dLon !== 0 || dLat !== 0) {
+          cameraPanRef.current = { dLon, dLat };
+        }
+      }
 
       // Cache world position using the annotation's DRAGGED screen position
       // (startProjected + delta), so lastValidWorldPosRef stays consistent with visual position
@@ -186,7 +213,7 @@ export function AnnotationLayer({
         }
       }
     },
-    [containerRef, unprojectToWorld]
+    [containerRef, unprojectToWorld, cameraPanRef]
   );
 
   const handlePointerUp = useCallback(

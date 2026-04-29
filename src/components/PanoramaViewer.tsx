@@ -21,6 +21,8 @@ export interface PanoramaViewerProps {
   cameraRef?: React.MutableRefObject<THREE.PerspectiveCamera | null>;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   rafIdRef?: React.MutableRefObject<number>;
+  // Write { dLon, dLat } here from AnnotationLayer to auto-pan during annotation drag
+  cameraPanRef?: React.MutableRefObject<{ dLon: number; dLat: number } | null>;
 }
 
 const SPHERE_RADIUS = 500;
@@ -38,6 +40,7 @@ export function PanoramaViewer({
   cameraRef: externalCameraRef,
   containerRef: externalContainerRef,
   rafIdRef: externalRafIdRef,
+  cameraPanRef,
 }: PanoramaViewerProps) {
   // External containerRef (from App) for screen position calculations
   // Internal ref as fallback
@@ -52,6 +55,8 @@ export function PanoramaViewer({
   const rafIdRef     = useRef(0);
   // Request version counter — discards stale texture load callbacks
   const loadIdRef   = useRef(0);
+  // External camera pan delta written by AnnotationLayer during edge auto-pan
+  const internalCameraPanRef = useRef<{ dLon: number; dLat: number } | null>(null);
 
   const longitudeRef = useRef(0);
   const latitudeRef  = useRef(0);
@@ -131,6 +136,14 @@ export function PanoramaViewer({
       rafId = requestAnimationFrame(animate);
       rafIdRef.current = rafId;
       if (externalRafIdRef) externalRafIdRef.current = rafId;
+
+      // Apply any pending camera pan delta (written by AnnotationLayer during edge auto-pan)
+      if (cameraPanRef?.current) {
+        const pan = cameraPanRef.current;
+        longitudeRef.current += pan.dLon;
+        latitudeRef.current = clamp(latitudeRef.current + pan.dLat, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
+        cameraPanRef.current = null;
+      }
 
       if (!isDraggingRef.current && !editModeRef.current) {
         longitudeRef.current += velocityLonRef.current;
