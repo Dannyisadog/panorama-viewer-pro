@@ -45,8 +45,12 @@ export function AnnotationLayer({
   // ── Drag state ───────────────────────────────────────────────────────────────
   const isDraggingRef = useRef(false);
   const draggingIdRef = useRef<string | null>(null);
-  const dragScreenXRef = useRef(0);
-  const dragScreenYRef = useRef(0);
+  // Accumulated pixel delta since drag start: (currentCursor - initialCursor)
+  const dragDeltaXRef = useRef(0);
+  const dragDeltaYRef = useRef(0);
+  // Actual cursor screen position during drag (used for unprojectToWorld)
+  const dragCursorXRef = useRef(0);
+  const dragCursorYRef = useRef(0);
   // Store last valid world position during drag — used on pointerup to avoid raycaster miss
   const lastValidWorldPosRef = useRef<{ x: number; y: number; z: number } | null>(null);
   // State drives re-render for CSS class; ref drives RAF loop for position updates
@@ -128,10 +132,12 @@ export function AnnotationLayer({
         let screenX: number;
         let screenY: number;
 
-        // If this annotation is being dragged, use stored screen position
+        // If this annotation is being dragged, use projected position + accumulated delta
         if (isDraggingRef.current && draggingIdRef.current === ann.id) {
-          screenX = dragScreenXRef.current;
-          screenY = dragScreenYRef.current;
+          const projected = projectToScreen(ann.position);
+          if (!projected) return;
+          screenX = projected.screenX + dragDeltaXRef.current;
+          screenY = projected.screenY + dragDeltaYRef.current;
         } else {
           const projected = projectToScreen(ann.position);
           if (!projected) {
@@ -161,11 +167,15 @@ export function AnnotationLayer({
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      dragScreenXRef.current = e.clientX - rect.left;
-      dragScreenYRef.current = e.clientY - rect.top;
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
 
-      // Cache world position during drag — pointerup will reuse the last valid one
-      const worldPos = unprojectToWorld(dragScreenXRef.current, dragScreenYRef.current);
+      // Accumulate delta from initial click position
+      dragDeltaXRef.current = cursorX - dragCursorXRef.current;
+      dragDeltaYRef.current = cursorY - dragCursorYRef.current;
+
+      // Cache world position using actual cursor screen position
+      const worldPos = unprojectToWorld(cursorX, cursorY);
       if (worldPos) {
         lastValidWorldPosRef.current = worldPos;
       }
@@ -186,6 +196,10 @@ export function AnnotationLayer({
       draggingIdRef.current = null;
       setDraggingId(null);
       lastValidWorldPosRef.current = null;
+      dragDeltaXRef.current = 0;
+      dragDeltaYRef.current = 0;
+      dragCursorXRef.current = 0;
+      dragCursorYRef.current = 0;
 
       if (worldPos && onAnnotationPositionUpdate) {
         onAnnotationPositionUpdate(id, worldPos);
@@ -222,8 +236,16 @@ export function AnnotationLayer({
       const container = containerRef.current;
       if (container) {
         const rect = container.getBoundingClientRect();
-        dragScreenXRef.current = e.clientX - rect.left;
-        dragScreenYRef.current = e.clientY - rect.top;
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        dragCursorXRef.current = cursorX;
+        dragCursorYRef.current = cursorY;
+        dragDeltaXRef.current = 0;
+        dragDeltaYRef.current = 0;
+
+        // Pre-compute and cache the world position at drag start
+        const worldPos = unprojectToWorld(cursorX, cursorY);
+        lastValidWorldPosRef.current = worldPos;
       }
 
       // Capture pointer so we receive move/up even outside element
