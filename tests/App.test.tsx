@@ -17,6 +17,25 @@ const mockLocalStorage = {
 
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage, writable: true });
 
+// ── Mock Supabase client ───────────────────────────────────────────────────────
+
+vi.mock('@/lib/supabaseClient', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+      signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+    storage: {
+      from: vi.fn().mockReturnValue({
+        upload: vi.fn().mockResolvedValue({ error: null }),
+        getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: '' } }),
+      }),
+    },
+  },
+}));
+
 // ── Mock child components ──────────────────────────────────────────────────────
 
 vi.mock('@/components/PanoramaViewer', () => ({
