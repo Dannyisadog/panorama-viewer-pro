@@ -75,7 +75,10 @@ export function AnnotationLayer({
     (screenX: number, screenY: number): { x: number; y: number; z: number } | null => {
       const camera = cameraRef.current;
       const container = containerRef.current;
-      if (!camera || !container) return null;
+      if (!camera || !container) {
+        console.log('[DEBUG unproject] camera or container missing', { hasCamera: !!camera, hasContainer: !!container });
+        return null;
+      }
       const rect = container.getBoundingClientRect
         ? container.getBoundingClientRect()
         : { left: 0, top: 0, width: container.clientWidth, height: container.clientHeight };
@@ -97,6 +100,17 @@ export function AnnotationLayer({
       const b = 2 * oc.dot(dir);
       const c = oc.dot(oc) - radius * radius;
       const discriminant = b * b - 4 * a * c;
+
+      console.log('[DEBUG unproject]', {
+        screenX, screenY,
+        nx, ny,
+        cameraPos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        rayDir: { x: dir.x, y: dir.y, z: dir.z },
+        radius,
+        discriminant,
+        fov: camera.fov,
+        aspect: camera.aspect,
+      });
 
       if (discriminant < 0) return null;
 
