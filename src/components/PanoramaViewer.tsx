@@ -176,7 +176,7 @@ export function PanoramaViewer({
       const dx = e.clientX - lastPointerRef.current.x;
       const dy = e.clientY - lastPointerRef.current.y;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasPannedRef.current = true;
-      if (editModeRef.current) return; // Disable manual rotation in edit mode — camera is fixed
+      // Always update camera (edit mode is only for suppressing click-to-create)
       const speed = 0.003;
       // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
@@ -234,11 +234,11 @@ export function PanoramaViewer({
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current || e.touches.length !== 1 || !lastTouch) return;
-      if (editModeRef.current) return; // Disable manual rotation in edit mode
       e.preventDefault();
       const dx = e.touches[0].clientX - lastTouch.x;
       const dy = e.touches[0].clientY - lastTouch.y;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasPannedRef.current = true;
+      // Always update camera (edit mode is only for suppressing click-to-create)
       const speed = 0.003;
       // Invert: positive drag moves the world in the same direction (grab-world feel)
       let newLon = longitudeRef.current + dx * speed;
