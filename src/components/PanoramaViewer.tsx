@@ -169,7 +169,7 @@ export function PanoramaViewer({
       idleTimerRef.current = setTimeout(() => {
         lastSavedRef.current = key;
         onCameraChangeRef.current?.(state);
-      }, 1000);
+      }, 300);
     };
 
     let rafId = 0;
