@@ -25,6 +25,8 @@ export interface PanoramaViewerProps {
   cameraPanRef?: React.MutableRefObject<{ dLon: number; dLat: number } | null>;
   // Restored camera state when project loads (null = use defaults)
   initialCameraState?: { longitude: number; latitude: number; fov: number } | null;
+  // Project ID that triggered the current initialCameraState — useEffect restores only when this changes
+  restoringProjectId?: string | null;
   // Called when camera becomes idle (debounced ~1s)
   onCameraChange?: (state: { longitude: number; latitude: number; fov: number }) => void;
 }
@@ -46,6 +48,7 @@ export function PanoramaViewer({
   rafIdRef: externalRafIdRef,
   cameraPanRef,
   initialCameraState,
+  restoringProjectId,
   onCameraChange,
 }: PanoramaViewerProps) {
   // External containerRef (from App) for screen position calculations
@@ -81,14 +84,17 @@ export function PanoramaViewer({
   const initializedRef = useRef(false);
 
   // ── Apply restored camera state when project changes (after initThree has run) ─
+  const lastRestoredProjectRef = useRef<string | null>(null);
   useEffect(() => {
     if (!initializedRef.current) return; // initThree hasn't run yet
     if (!initialCameraState) return;
+    if (restoringProjectId === lastRestoredProjectRef.current) return; // already restored for this project
+    lastRestoredProjectRef.current = restoringProjectId ?? null;
     longitudeRef.current = initialCameraState.longitude;
     latitudeRef.current  = initialCameraState.latitude;
     fovRef.current      = initialCameraState.fov;
     targetFovRef.current = initialCameraState.fov;
-  }, [initialCameraState]);
+  }, [restoringProjectId]);
 
   // ── Idle camera save ───────────────────────────────────────────────────────────
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

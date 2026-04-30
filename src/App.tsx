@@ -345,6 +345,7 @@ function Editor() {
         rafIdRef={rafIdRef}
         cameraPanRef={cameraPanRef}
         initialCameraState={cameraState}
+        restoringProjectId={currentProject?.id ?? null}
         onCameraChange={updateCameraState}
       />
 
