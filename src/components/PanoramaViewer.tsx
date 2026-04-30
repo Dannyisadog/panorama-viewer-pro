@@ -80,6 +80,16 @@ export function PanoramaViewer({
 
   const initializedRef = useRef(false);
 
+  // ── Apply restored camera state when project changes (after initThree has run) ─
+  useEffect(() => {
+    if (!initializedRef.current) return; // initThree hasn't run yet
+    if (!initialCameraState) return;
+    longitudeRef.current = initialCameraState.longitude;
+    latitudeRef.current  = initialCameraState.latitude;
+    fovRef.current      = initialCameraState.fov;
+    targetFovRef.current = initialCameraState.fov;
+  }, [initialCameraState]);
+
   // ── Idle camera save ───────────────────────────────────────────────────────────
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
