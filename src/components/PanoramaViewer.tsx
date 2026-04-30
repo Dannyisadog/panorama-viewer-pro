@@ -23,6 +23,10 @@ export interface PanoramaViewerProps {
   rafIdRef?: React.MutableRefObject<number>;
   // Write { dLon, dLat } here from AnnotationLayer to auto-pan during annotation drag
   cameraPanRef?: React.MutableRefObject<{ dLon: number; dLat: number } | null>;
+  // Restored camera state when project loads (null = use defaults)
+  initialCameraState?: { longitude: number; latitude: number; fov: number } | null;
+  // Called when camera becomes idle (debounced ~1s)
+  onCameraChange?: (state: { longitude: number; latitude: number; fov: number }) => void;
 }
 
 const SPHERE_RADIUS = 500;
@@ -41,6 +45,8 @@ export function PanoramaViewer({
   containerRef: externalContainerRef,
   rafIdRef: externalRafIdRef,
   cameraPanRef,
+  initialCameraState,
+  onCameraChange,
 }: PanoramaViewerProps) {
   // External containerRef (from App) for screen position calculations
   // Internal ref as fallback
@@ -74,6 +80,12 @@ export function PanoramaViewer({
 
   const initializedRef = useRef(false);
 
+  // ── Idle camera save ───────────────────────────────────────────────────────────
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string | null>(null);
+  const onCameraChangeRef = useRef(onCameraChange);
+  onCameraChangeRef.current = onCameraChange;
+
   const setContainerRef = useCallback((node: HTMLDivElement | null) => {
     // When external ref is provided, write to it. Also maintain internal for self-use.
     if (externalContainerRef) {
@@ -98,6 +110,14 @@ export function PanoramaViewer({
     camera.lookAt(0, 0, 1);
     cameraRef.current = camera;
     if (externalCameraRef) externalCameraRef.current = camera;
+
+    // Apply restored camera state if available
+    if (initialCameraState) {
+      longitudeRef.current = initialCameraState.longitude;
+      latitudeRef.current = initialCameraState.latitude;
+      fovRef.current = initialCameraState.fov;
+      targetFovRef.current = initialCameraState.fov;
+    }
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -127,6 +147,19 @@ export function PanoramaViewer({
       camera.lookAt(dirX, dirY, dirZ);
       camera.fov = fovRef.current;
       camera.updateProjectionMatrix();
+    };
+
+    // Debounced camera state save — resets timer on every interaction
+    const scheduleCameraSave = () => {
+      if (!onCameraChangeRef.current) return;
+      const state = { longitude: longitudeRef.current, latitude: latitudeRef.current, fov: fovRef.current };
+      const key = JSON.stringify(state);
+      if (key === lastSavedRef.current) return;
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        lastSavedRef.current = key;
+        onCameraChangeRef.current?.(state);
+      }, 1000);
     };
 
     let rafId = 0;
@@ -197,11 +230,13 @@ export function PanoramaViewer({
       velocityLonRef.current = dx * speed;
       velocityLatRef.current = dy * speed;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      scheduleCameraSave();
     };
 
     const onPointerUp = () => {
       isDraggingRef.current = false;
       lastPointerRef.current = null;
+      scheduleCameraSave();
     };
 
     const onClick = (e: MouseEvent) => {
@@ -232,6 +267,7 @@ export function PanoramaViewer({
       e.preventDefault();
       const delta = e.deltaY || e.detail || 0;
       targetFovRef.current = clamp(targetFovRef.current + delta * 0.05, minFov, maxFov);
+      scheduleCameraSave();
     };
 
     let lastTouch: { x: number; y: number } | null = null;
@@ -259,11 +295,13 @@ export function PanoramaViewer({
       velocityLonRef.current = dx * speed;
       velocityLatRef.current = dy * speed;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      scheduleCameraSave();
     };
     const onTouchEnd = () => {
       isDraggingRef.current = false;
       hasPannedRef.current = false;
       lastTouch = null;
+      scheduleCameraSave();
     };
 
     container.addEventListener('pointerdown',  onPointerDown);

@@ -34,6 +34,8 @@ function Editor() {
     setCurrentPanorama,
     annotations,
     setAnnotations,
+    cameraState,
+    updateCameraState,
     imageUrl,
     isBootstrapping,
     isLoadingProject,
@@ -342,6 +344,8 @@ function Editor() {
         containerRef={containerRef}
         rafIdRef={rafIdRef}
         cameraPanRef={cameraPanRef}
+        initialCameraState={cameraState}
+        onCameraChange={updateCameraState}
       />
 
       <AnnotationLayer

@@ -8,13 +8,20 @@
 import { supabase } from '@/lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+export interface CameraState {
+  longitude: number; // horizontal angle (radians)
+  latitude: number;  // vertical angle (radians)
+  fov: number;
+}
+
 export interface Project {
   id: string;
   user_id: string;
   name: string;
   created_at: string;
   updated_at: string;
+  camera_state: CameraState | null;
 }
 
 export interface NewProjectInput {
@@ -70,6 +77,25 @@ export async function updateProject(
 
   if (error) {
     console.error('[Projects] update error:', error.message);
+    return false;
+  }
+  return true;
+}
+
+// ── Update camera state ─────────────────────────────────────────────────────────
+export async function updateProjectCameraState(
+  projectId: string,
+  cameraState: CameraState,
+  user: User
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('projects')
+    .update({ camera_state: cameraState })
+    .eq('id', projectId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('[Projects] updateCameraState error:', error.message);
     return false;
   }
   return true;

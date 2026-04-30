@@ -25,8 +25,10 @@ import {
   fetchProjects,
   createProject,
   updateProject,
+  updateProjectCameraState,
   deleteProject,
   type Project,
+  type CameraState,
 } from '@/api/projects';
 import {
   createPanorama,
@@ -47,6 +49,10 @@ interface ProjectContextValue {
   panoramas: Panorama[]; // all panoramas for current project
   annotations: Annotation[];
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
+
+  // Camera
+  cameraState: CameraState | null;
+  updateCameraState: (state: CameraState) => void;
 
   // Permission
   isOwner: boolean; // current user owns currentProject
@@ -83,6 +89,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
   const [currentPanorama, setCurrentPanorama] = useState<Panorama | null>(null);
   const [panoramas, setPanoramas] = useState<Panorama[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [cameraState, setCameraState] = useState<CameraState | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
@@ -133,6 +140,9 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
 
         setPanoramas(allPanoramas);
         setCurrentPanorama(panorama);
+
+        // Restore saved camera state (or null for fresh project)
+        setCameraState(project.camera_state ?? null);
 
         // Load annotations for this project (null user = localStorage only)
         const anns = await loadAnnotations(project.id, userRef.current);
@@ -187,6 +197,7 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setCurrentProjectState(project);
       setPanoramas(allPanoramas);
       setCurrentPanorama(finalPanorama ?? null);
+      setCameraState(project.camera_state ?? null);
 
       const anns = await loadAnnotations(project.id, userRef.current);
       console.log('[ProjectContext] loadAnnotations returned:', anns.length, 'annotations');
@@ -230,6 +241,16 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       setIsLoadingAnnotations(false);
     }
   }, [currentProject]);
+
+  // ── Save camera state ────────────────────────────────────────────────────────
+  const updateCameraState = useCallback(
+    async (state: CameraState) => {
+      setCameraState(state);
+      if (!currentProject || !userRef.current) return;
+      await updateProjectCameraState(currentProject.id, state, userRef.current);
+    },
+    [currentProject]
+  );
 
   /**
    * Create a new project + immediately set its first panorama.
@@ -322,6 +343,8 @@ export function ProjectProvider({ user, children }: ProjectProviderProps) {
       panoramas,
       annotations,
       setAnnotations,
+      cameraState,
+      updateCameraState,
       isOwner,
       isBootstrapping,
       isLoadingProject,
